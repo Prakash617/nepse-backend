@@ -1,0 +1,88 @@
+[project]
+name = "nepse-platform"
+version = "0.1.0"
+description = "Production-oriented market-data platform for the Nepal Stock Exchange (NEPSE)"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "django>=5.1,<5.2",
+    "djangorestframework>=3.15,<3.16",
+    "django-filter>=24.0,<25.0",
+    "drf-spectacular>=0.27,<0.28",
+    "psycopg[binary]>=3.1,<4.0",
+    "redis>=5.0,<6.0",
+    "celery[redis]>=5.4,<6.0",
+    "django-celery-beat>=2.6,<3.0",
+    "wasmtime>=5.0,<6.0",
+    "requests>=2.31,<3.0",
+    "certifi>=2024.0",
+    "python-decouple>=3.8,<4.0",
+    "httpx>=0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<9.0",
+    "pytest-django>=4.8,<5.0",
+    "ruff>=0.5,<1.0",
+    "mypy>=1.10,<2.0",
+    "django-stubs>=5.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["config*", "apps*", "integrations*"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0,<9.0",
+    "pytest-django>=4.8,<5.0",
+    "ruff>=0.5,<1.0",
+    "mypy>=1.10,<2.0",
+    "django-stubs>=5.0",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.development"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "apps", "integrations"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["mypy_django_plugin.main"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["integrations.nepse.official_api.*"]
+ignore_missing_imports = true

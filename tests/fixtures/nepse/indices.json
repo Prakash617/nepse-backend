@@ -1,0 +1,24 @@
+[
+    {
+        "id": 58,
+        "indexName": "NEPSE Index",
+        "open": 2800.00,
+        "high": 2850.00,
+        "low": 2790.00,
+        "close": 2830.00,
+        "pointChange": 30.00,
+        "percentChange": 1.07,
+        "totalTradedVolume": 10000000
+    },
+    {
+        "id": 52,
+        "indexName": "Banking Sub-Index",
+        "open": 1200.00,
+        "high": 1220.00,
+        "low": 1195.00,
+        "close": 1215.00,
+        "pointChange": 15.00,
+        "percentChange": 1.25,
+        "totalTradedVolume": 5000000
+    }
+]

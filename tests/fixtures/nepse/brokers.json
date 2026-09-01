@@ -1,0 +1,18 @@
+{
+    "content": [
+        {
+            "id": 1,
+            "memberName": "Nabil Capital",
+            "memberCode": "1",
+            "contactPerson": "Contact 1",
+            "contactNumber": "01-1234567"
+        },
+        {
+            "id": 2,
+            "memberName": "SCB Capital",
+            "memberCode": "2",
+            "contactPerson": "Contact 2",
+            "contactNumber": "01-7654321"
+        }
+    ]
+}

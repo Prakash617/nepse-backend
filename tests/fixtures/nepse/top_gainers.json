@@ -1,0 +1,20 @@
+[
+    {
+        "symbol": "NABIL",
+        "securityId": 1,
+        "lastTradedPrice": 950.00,
+        "pointChange": 15.00,
+        "percentChange": 1.61,
+        "totalTradedVolume": 500000,
+        "totalTradedValue": 475000000
+    },
+    {
+        "symbol": "SCB",
+        "securityId": 2,
+        "lastTradedPrice": 780.00,
+        "pointChange": 12.00,
+        "percentChange": 1.56,
+        "totalTradedVolume": 300000,
+        "totalTradedValue": 234000000
+    }
+]

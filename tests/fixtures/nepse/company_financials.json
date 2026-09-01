@@ -1,0 +1,48 @@
+[
+    {
+        "id": 47142,
+        "activeStatus": "A",
+        "applicationType": 111,
+        "applicationStatus": 3,
+        "fiscalReport": {
+            "id": 7081,
+            "activeStatus": "A",
+            "quarterMaster": {
+                "id": 4,
+                "activeStatus": "A",
+                "quarterName": "Fourth Quarter",
+                "versionId": 0
+            },
+            "reportTypeMaster": {
+                "id": 2,
+                "activeStatus": "A",
+                "reportName": "Annual Report",
+                "versionId": 0
+            },
+            "financialYear": {
+                "id": 41,
+                "activeStatus": "A",
+                "fyName": "2081/82",
+                "fromYear": "2025-07-17",
+                "toYear": "2026-07-16",
+                "fyNameNepali": "2082-2083"
+            },
+            "peValue": 73.2,
+            "epsValue": 5.92,
+            "paidUpCapital": 848106000.0,
+            "profitAmount": 50169592.0,
+            "netWorthPerShare": 83.84,
+            "remarks": null
+        },
+        "applicationDocumentDetailsList": [
+            {
+                "id": 32508,
+                "activeStatus": "A",
+                "application": 47142,
+                "documentType": 54,
+                "submittedDate": "2026-08-19",
+                "filePath": "/reports/1"
+            }
+        ]
+    }
+]

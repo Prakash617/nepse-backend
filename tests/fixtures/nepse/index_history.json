@@ -1,0 +1,20 @@
+[
+    {
+        "businessDate": "2026-01-15",
+        "open": 2800.00,
+        "high": 2850.00,
+        "low": 2790.00,
+        "close": 2830.00,
+        "totalTradedVolume": 10000000,
+        "totalTradedValue": 3000000000
+    },
+    {
+        "businessDate": "2026-01-14",
+        "open": 2790.00,
+        "high": 2810.00,
+        "low": 2780.00,
+        "close": 2800.00,
+        "totalTradedVolume": 8000000,
+        "totalTradedValue": 2400000000
+    }
+]

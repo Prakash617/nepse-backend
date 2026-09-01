@@ -1,0 +1,22 @@
+[
+    {
+        "id": 52,
+        "indexName": "Banking Sub-Index",
+        "open": 1200.00,
+        "high": 1220.00,
+        "low": 1195.00,
+        "close": 1215.00,
+        "pointChange": 15.00,
+        "percentChange": 1.25
+    },
+    {
+        "id": 53,
+        "indexName": "Development Bank Sub-Index",
+        "open": 800.00,
+        "high": 810.00,
+        "low": 795.00,
+        "close": 805.00,
+        "pointChange": 5.00,
+        "percentChange": 0.62
+    }
+]

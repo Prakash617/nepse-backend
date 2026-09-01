@@ -1,0 +1,9 @@
+{
+    "accessToken": "raw_access_token_string",
+    "refreshToken": "raw_refresh_token_string",
+    "salt1": "12345",
+    "salt2": "67890",
+    "salt3": "11111",
+    "salt4": "22222",
+    "salt5": "33333"
+}

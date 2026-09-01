@@ -1,0 +1,22 @@
+[
+    {
+        "id": 1,
+        "symbol": "NABIL",
+        "companyName": "Nabil Bank Limited",
+        "sector": "Banking",
+        "securityType": "Equity",
+        "listingDate": "1999-01-01",
+        "paidUpValue": 100,
+        "faceValue": 100
+    },
+    {
+        "id": 2,
+        "symbol": "SCB",
+        "companyName": "Standard Chartered Bank Nepal Limited",
+        "sector": "Banking",
+        "securityType": "Equity",
+        "listingDate": "2000-01-01",
+        "paidUpValue": 100,
+        "faceValue": 100
+    }
+]

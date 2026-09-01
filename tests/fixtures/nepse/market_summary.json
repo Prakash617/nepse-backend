@@ -1,0 +1,12 @@
+{
+    "totalTradedVolume": 15000000,
+    "totalTradedValue": 5000000000,
+    "transactions": 45000,
+    "previousClose": 2800.50,
+    "open": 2810.00,
+    "high": 2850.00,
+    "low": 2790.00,
+    "close": 2830.00,
+    "pointChange": 29.50,
+    "percentChange": 1.05
+}

@@ -1,0 +1,34 @@
+{
+    "content": [
+        {
+            "symbol": "NABIL",
+            "securityId": 1,
+            "lastTradedPrice": 950.00,
+            "openPrice": 940.00,
+            "maxPrice": 960.00,
+            "minPrice": 935.00,
+            "closePrice": 945.00,
+            "totalTradedVolume": 500000,
+            "totalTradedValue": 475000000,
+            "pointChange": 5.00,
+            "percentChange": 0.53,
+            "previousClose": 945.00,
+            "businessDate": "2026-01-15"
+        },
+        {
+            "symbol": "SCB",
+            "securityId": 2,
+            "lastTradedPrice": 780.00,
+            "openPrice": 775.00,
+            "maxPrice": 785.00,
+            "minPrice": 770.00,
+            "closePrice": 778.00,
+            "totalTradedVolume": 300000,
+            "totalTradedValue": 234000000,
+            "pointChange": 2.00,
+            "percentChange": 0.26,
+            "previousClose": 778.00,
+            "businessDate": "2026-01-15"
+        }
+    ]
+}
