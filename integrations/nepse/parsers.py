@@ -180,21 +180,30 @@ def parse_index_history(data: dict[str, Any] | list[dict[str, Any]]) -> list[dic
     """Parse index history from /api/nots/index/history."""
     if isinstance(data, list):
         history_data = data
+    elif isinstance(data, dict):
+        history_data = _get_optional(data, "content", [])
+        if not history_data:
+            history_data = _get_optional(data, "data", [])
     else:
-        history_data = _get_optional(data, "data", [])
+        return []
     if not isinstance(history_data, list):
         return []
     results = []
     for item in history_data:
+        # API returns openIndex/highIndex/lowIndex/closingIndex
+        open_val = _get_optional(item, "openIndex") or _get_optional(item, "open")
+        high_val = _get_optional(item, "highIndex") or _get_optional(item, "high")
+        low_val = _get_optional(item, "lowIndex") or _get_optional(item, "low")
+        close_val = _get_optional(item, "closingIndex") or _get_optional(item, "close")
         results.append(
             {
                 "business_date": _get_optional(item, "businessDate"),
-                "open": _get_optional(item, "open"),
-                "high": _get_optional(item, "high"),
-                "low": _get_optional(item, "low"),
-                "close": _get_optional(item, "close"),
-                "volume": _get_optional(item, "totalTradedVolume"),
-                "turnover": _get_optional(item, "totalTradedValue"),
+                "open": open_val,
+                "high": high_val,
+                "low": low_val,
+                "close": close_val,
+                "volume": _get_optional(item, "totalTradedVolume") or _get_optional(item, "turnoverVolume"),
+                "turnover": _get_optional(item, "totalTradedValue") or _get_optional(item, "turnoverValue"),
             }
         )
     return results

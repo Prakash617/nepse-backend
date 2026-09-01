@@ -126,21 +126,38 @@ def sync_daily_prices(prices_data: list[dict[str, Any]]) -> SyncResult:
             result.errors.append(f"Unresolved security: {unresolved}")
             continue
 
+        close_val = _to_decimal(data.get("close"))
+        ltp_val = _to_decimal(data.get("ltp"))
+        prev_close_val = _to_decimal(data.get("prev_close"))
+        open_val = _to_decimal(data.get("open"))
+        pct_change = _to_decimal(
+            data.get("percent_change") or data.get("change_percent")
+        )
+        pt_change = _to_decimal(data.get("change"))
+
+        current_val = close_val if close_val is not None else ltp_val
+        prev_val = prev_close_val if prev_close_val is not None else open_val
+        if pct_change is None and current_val is not None and prev_val is not None and prev_val > 0:
+            pt_change = current_val - prev_val
+            pct_change = ((current_val - prev_val) / prev_val) * Decimal(100)
+
+        # NEPSE today-price API often only returns ltp, not close.
+        # Use ltp as close when close is missing so downstream queries work.
+        effective_close = close_val if close_val is not None else ltp_val
+
         valid_records.append({
             "security_id": db_security_id,
             "trading_date": trading_date,
-            "open": _to_decimal(data.get("open")),
+            "open": open_val,
             "high": _to_decimal(data.get("high")),
             "low": _to_decimal(data.get("low")),
-            "close": _to_decimal(data.get("close")),
-            "ltp": _to_decimal(data.get("ltp")),
-            "previous_close": _to_decimal(data.get("prev_close")),
+            "close": effective_close,
+            "ltp": ltp_val,
+            "previous_close": prev_close_val,
             "volume": _to_int(data.get("volume")),
             "turnover": _to_decimal(data.get("turnover")),
-            "percentage_change": _to_decimal(
-                data.get("percent_change") or data.get("change_percent")
-            ),
-            "point_change": _to_decimal(data.get("change")),
+            "percentage_change": pct_change,
+            "point_change": pt_change,
         })
 
     if not valid_records:

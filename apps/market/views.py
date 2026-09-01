@@ -3,7 +3,7 @@
 from datetime import date
 
 from django.core.cache import cache
-from django.db.models import Max
+from django.db.models import Max, Q
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -60,9 +60,9 @@ class MarketGainersView(APIView):
             DailyPrice.objects.filter(
                 trading_date=latest_date,
                 percentage_change__isnull=False,
-                close__isnull=False,
                 percentage_change__gt=0,
             )
+            .filter(Q(close__isnull=False) | Q(ltp__isnull=False))
             .select_related("security")
             .order_by("-percentage_change")[:limit]
         )
@@ -70,7 +70,7 @@ class MarketGainersView(APIView):
         results = [
             {
                 "symbol": p.security.symbol,
-                "close": str(p.close),
+                "close": str(p.close or p.ltp),
                 "percentage_change": str(p.percentage_change),
                 "volume": p.volume,
                 "turnover": str(p.turnover) if p.turnover else None,
@@ -107,9 +107,9 @@ class MarketLosersView(APIView):
             DailyPrice.objects.filter(
                 trading_date=latest_date,
                 percentage_change__isnull=False,
-                close__isnull=False,
                 percentage_change__lt=0,
             )
+            .filter(Q(close__isnull=False) | Q(ltp__isnull=False))
             .select_related("security")
             .order_by("percentage_change")[:limit]
         )
@@ -117,7 +117,7 @@ class MarketLosersView(APIView):
         results = [
             {
                 "symbol": p.security.symbol,
-                "close": str(p.close),
+                "close": str(p.close or p.ltp),
                 "percentage_change": str(p.percentage_change),
                 "volume": p.volume,
                 "turnover": str(p.turnover) if p.turnover else None,

@@ -1,6 +1,4 @@
-"""Security API views."""
-
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 
@@ -18,7 +16,7 @@ class SecurityListView(generics.ListAPIView):
 
         search = self.request.query_params.get("search")
         if search:
-            qs = qs.filter(symbol__icontains=search)
+            qs = qs.filter(Q(symbol__icontains=search) | Q(company_name__icontains=search))
 
         sector = self.request.query_params.get("sector")
         if sector:

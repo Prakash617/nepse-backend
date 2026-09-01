@@ -5,6 +5,8 @@ Uses nepse_id as the primary synchronization identity.
 """
 
 import logging
+from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from django.db import transaction
@@ -14,6 +16,35 @@ from apps.corporate_actions.models import BonusShare, Dividend
 from apps.securities.models import Security
 
 logger = logging.getLogger(__name__)
+
+
+def _to_decimal(value: Any) -> Decimal | None:
+    """Safely convert a value to Decimal. Returns None on failure."""
+    if value is None:
+        return None
+    try:
+        from decimal import Decimal
+        cleaned = str(value).replace(",", "").strip()
+        if not cleaned:
+            return None
+        return Decimal(cleaned)
+    except Exception:
+        return None
+
+
+def _to_date(value: Any) -> date | None:
+    """Safely convert a value to date. Returns None on failure."""
+    if value is None:
+        return None
+    from datetime import date
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value.strip())
+        except Exception:
+            return None
+    return None
 
 
 def _normalize_dividend_data(data: dict[str, Any]) -> dict[str, Any] | None:
@@ -30,9 +61,9 @@ def _normalize_dividend_data(data: dict[str, Any]) -> dict[str, Any] | None:
     return {
         "nepse_id": int(nepse_id),
         "fiscal_year": str(fiscal_year).strip(),
-        "dividend_per_share": data.get("dividend_per_share"),
-        "bonus_shares": data.get("bonus_shares"),
-        "announcement_date": data.get("announcement_date"),
+        "dividend_per_share": _to_decimal(data.get("dividend_per_share")),
+        "bonus_shares": _to_decimal(data.get("bonus_shares")),
+        "announcement_date": _to_date(data.get("announcement_date")),
     }
 
 

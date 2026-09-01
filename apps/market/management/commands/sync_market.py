@@ -4,7 +4,7 @@ import logging
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.market.services import sync_market_snapshot
+from apps.market.services import sync_market_snapshot, sync_market_snapshot_from_indices
 from integrations.nepse import NepseClient, NepseError
 
 logger = logging.getLogger(__name__)
@@ -26,24 +26,30 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN — no changes will be committed."))
 
-        self.stdout.write("Fetching market summary from NEPSE...")
+        self.stdout.write("Fetching market data from NEPSE...")
 
         try:
             client = NepseClient()
-            summary_data = client.get_market_summary()
-        except NepseError as e:
-            raise CommandError(f"Failed to fetch market summary from NEPSE: {e}") from e
 
-        self.stdout.write(f"Market summary: volume={summary_data.get('total_traded_volume')}, "
-                          f"value={summary_data.get('total_traded_value')}")
+            # Primary: use index history + summary history (reliable)
+            result = sync_market_snapshot_from_indices(client)
+
+            # If indices sync had no data, fall back to market summary
+            if result.skipped and not result.created and not result.updated:
+                self.stdout.write("Indices sync had no data, trying market summary...")
+                summary_data = client.get_market_summary()
+                self.stdout.write(
+                    f"Market summary: volume={summary_data.get('total_traded_volume')}, "
+                    f"value={summary_data.get('total_traded_value')}"
+                )
+                if not dry_run:
+                    result = sync_market_snapshot(summary_data)
+        except NepseError as e:
+            raise CommandError(f"Failed to fetch market data from NEPSE: {e}") from e
 
         if dry_run:
-            for key, value in summary_data.items():
-                self.stdout.write(f"  {key}: {value}")
             self.stdout.write(self.style.SUCCESS("Dry run complete. No changes made."))
             return
-
-        result = sync_market_snapshot(summary_data)
 
         self.stdout.write(self.style.SUCCESS(
             f"Market Snapshot:\n"
