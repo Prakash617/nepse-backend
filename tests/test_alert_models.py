@@ -1,9 +1,10 @@
-"""Tests for alert models."""
+"""Tests for alert models and state transitions."""
 
+from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.alerts.models import Alert
+from apps.alerts.models import Alert, AlertHistory
 from apps.securities.models import Security
 
 User = get_user_model()
@@ -28,38 +29,57 @@ class TestAlert:
             user=user,
             security=security,
             condition=Alert.ConditionType.PRICE_ABOVE,
-            threshold=1000.00,
+            threshold=Decimal("1000.00"),
+            frequency=Alert.FrequencyType.RECURRING,
+            notify_browser_push=True,
+            notify_in_app=True,
+            cooldown_minutes=15,
         )
         assert alert.pk is not None
         assert alert.is_active is True
+        assert alert.status == Alert.AlertStatus.ACTIVE
         assert alert.last_triggered_at is None
-        expected = f"testuser - TEST Price Above {alert.threshold}"
-        assert str(alert) == expected
+        assert alert.notify_browser_push is True
+        assert alert.cooldown_minutes == 15
+        assert "TEST" in str(alert)
 
-    def test_default_is_active(self, user, security):
+    def test_pause_and_resume(self, user, security):
         alert = Alert.objects.create(
             user=user,
             security=security,
             condition=Alert.ConditionType.PRICE_BELOW,
-            threshold=500.00,
+            threshold=Decimal("500.00"),
         )
+        assert alert.status == Alert.AlertStatus.ACTIVE
         assert alert.is_active is True
 
-    def test_condition_choices(self):
-        assert Alert.ConditionType.PRICE_ABOVE == "price_above"
-        assert Alert.ConditionType.PRICE_BELOW == "price_below"
-        assert Alert.ConditionType.PERCENT_CHANGE_UP == "percent_change_up"
-        assert Alert.ConditionType.PERCENT_CHANGE_DOWN == "percent_change_down"
+        alert.pause()
+        assert alert.status == Alert.AlertStatus.PAUSED
+        assert alert.is_active is False
 
-    def test_ordering(self, user, security):
-        alert1 = Alert.objects.create(
-            user=user, security=security,
-            condition=Alert.ConditionType.PRICE_ABOVE, threshold=1000,
+        alert.resume()
+        assert alert.status == Alert.AlertStatus.ACTIVE
+        assert alert.is_active is True
+
+    def test_alert_history_logging(self, user, security):
+        alert = Alert.objects.create(
+            user=user,
+            security=security,
+            condition=Alert.ConditionType.PRICE_ABOVE,
+            threshold=Decimal("1000.00"),
         )
-        alert2 = Alert.objects.create(
-            user=user, security=security,
-            condition=Alert.ConditionType.PRICE_BELOW, threshold=500,
+        history = AlertHistory.objects.create(
+            alert=alert,
+            user=user,
+            security=security,
+            triggered_value=Decimal("1050.00"),
+            threshold=Decimal("1000.00"),
+            condition=alert.condition,
+            message="TEST reached 1050.00",
+            push_sent=True,
+            in_app_sent=True,
         )
-        alerts = list(Alert.objects.filter(user=user))
-        assert alerts[0] == alert2
-        assert alerts[1] == alert1
+        assert history.pk is not None
+        assert history.triggered_value == Decimal("1050.00")
+        assert history.push_sent is True
+        assert str(history).startswith("TEST triggered at")

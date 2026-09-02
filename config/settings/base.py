@@ -10,6 +10,7 @@ ALLOWED_HOSTS: list[str] = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127
 
 # Application definition
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -22,6 +23,7 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "django_celery_beat",
+    "channels",
     # Local apps
     "apps.users",
     "apps.market",
@@ -81,6 +83,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
+# Channel Layers
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [os.environ.get("REDIS_URL", "redis://localhost:6379/0")],
+        },
+    },
+}
 
 # Database
 DATABASES = {
@@ -186,6 +199,30 @@ NEPSE_SSL_VERIFY = os.environ.get("NEPSE_SSL_VERIFY", "true").lower() == "true"
 NEPSE_TIMEOUT = int(os.environ.get("NEPSE_TIMEOUT", "30"))
 NEPSE_MAX_RETRIES = int(os.environ.get("NEPSE_MAX_RETRIES", "3"))
 NEPSE_BACKOFF_FACTOR = float(os.environ.get("NEPSE_BACKOFF_FACTOR", "1.0"))
+
+# Web Push (VAPID)
+VAPID_PUBLIC_KEY = os.environ.get(
+    "VAPID_PUBLIC_KEY",
+    "BNIPVKVp5gEyHkwpZZjDhGb84zlDuJjGu2YulvS74E2SuO15eifJXx2-nBcDJLU7ulWBShoZ_ZlOuGGdYbIw1Cs",
+)
+VAPID_PRIVATE_KEY = os.environ.get(
+    "VAPID_PRIVATE_KEY",
+    "q5gl-g5G4mSbnRKK4Kbj6-3BQEjS9dFpApK9K4sI0kk",
+)
+VAPID_ADMIN_EMAIL = os.environ.get(
+    "VAPID_ADMIN_EMAIL",
+    "mailto:admin@nepse.local",
+)
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN = os.environ.get(
+    "TELEGRAM_BOT_TOKEN",
+    "8274788886:AAGHiSL0i4nuYM_AYjraWI31ltlcu_frKHk",
+)
+TELEGRAM_BOT_USERNAME = os.environ.get(
+    "TELEGRAM_BOT_USERNAME",
+    "stock_napal_bot",
+)
 
 # Logging
 LOGGING = {

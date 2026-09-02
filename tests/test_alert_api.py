@@ -1,10 +1,11 @@
 """Tests for alert API endpoints."""
 
+from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
-from apps.alerts.models import Alert
+from apps.alerts.models import Alert, AlertHistory
 from apps.securities.models import Security
 
 User = get_user_model()
@@ -59,11 +60,17 @@ class TestAlertListCreate:
                 "security": security.pk,
                 "condition": "price_above",
                 "threshold": "1000.00",
+                "frequency": "recurring",
+                "notify_browser_push": True,
+                "notify_in_app": True,
+                "cooldown_minutes": 15,
             },
         )
         assert response.status_code == 201
         assert response.data["security_symbol"] == "TEST"
         assert response.data["condition"] == "price_above"
+        assert response.data["status"] == "active"
+        assert response.data["cooldown_minutes"] == 15
         assert Alert.objects.filter(user=user).count() == 1
 
     def test_create_multiple_alerts_same_security(self, api_client, user, security):
@@ -170,13 +177,56 @@ class TestAlertDetail:
         response = api_client.get(f"/api/v1/alerts/{alert.pk}/")
         assert response.status_code == 404
 
-    def test_toggle_is_active(self, api_client, user, security):
+
+@pytest.mark.django_db
+class TestAlertPauseResumeHistoryAPI:
+    def test_pause_and_resume_endpoints(self, api_client, user, security):
         api_client.force_authenticate(user=user)
         alert = Alert.objects.create(
-            user=user, security=security,
-            condition=Alert.ConditionType.PRICE_ABOVE, threshold=1000, is_active=True,
+            user=user,
+            security=security,
+            condition=Alert.ConditionType.PRICE_ABOVE,
+            threshold=Decimal("1000.00"),
         )
-        response = api_client.patch(f"/api/v1/alerts/{alert.pk}/", {"is_active": False})
-        assert response.status_code == 200
-        alert.refresh_from_db()
-        assert alert.is_active is False
+        # Pause
+        res = api_client.post(f"/api/v1/alerts/{alert.id}/pause/")
+        assert res.status_code == 200
+        assert res.data["status"] == "paused"
+        assert res.data["is_active"] is False
+
+        # Resume
+        res2 = api_client.post(f"/api/v1/alerts/{alert.id}/resume/")
+        assert res2.status_code == 200
+        assert res2.data["status"] == "active"
+        assert res2.data["is_active"] is True
+
+    def test_history_endpoints(self, api_client, user, security):
+        api_client.force_authenticate(user=user)
+        alert = Alert.objects.create(
+            user=user,
+            security=security,
+            condition=Alert.ConditionType.PRICE_ABOVE,
+            threshold=Decimal("1000.00"),
+        )
+        AlertHistory.objects.create(
+            alert=alert,
+            user=user,
+            security=security,
+            triggered_value=Decimal("1050.00"),
+            threshold=Decimal("1000.00"),
+            condition=alert.condition,
+            message="TEST reached 1050.00",
+            push_sent=True,
+            in_app_sent=True,
+        )
+
+        # Alert specific history
+        res = api_client.get(f"/api/v1/alerts/{alert.id}/history/")
+        assert res.status_code == 200
+        assert res.data["count"] == 1
+        assert res.data["results"][0]["triggered_value"] == "1050.00"
+
+        # All alert history
+        res2 = api_client.get("/api/v1/alerts/history/")
+        assert res2.status_code == 200
+        assert res2.data["count"] == 1

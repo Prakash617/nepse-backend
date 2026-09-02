@@ -4,19 +4,28 @@ All endpoints require authentication. Users can only access their own watchlists
 """
 
 from django.db import IntegrityError
-from django.db.models import QuerySet
+from django.db.models import Max, QuerySet
 from rest_framework import generics, status
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.prices.models import DailyPrice
 from apps.watchlist.models import Watchlist, WatchlistItem
 from apps.watchlist.serializers import (
     WatchlistItemSerializer,
     WatchlistListSerializer,
     WatchlistSerializer,
 )
+
+
+def _get_price_map() -> dict:
+    """Build a mapping of security_id -> latest DailyPrice for O(1) lookups."""
+    latest_date = DailyPrice.objects.aggregate(latest=Max("trading_date"))["latest"]
+    if latest_date:
+        return {p.security_id: p for p in DailyPrice.objects.filter(trading_date=latest_date)}
+    return {}
 
 
 class WatchlistListCreateView(generics.ListCreateAPIView):
@@ -30,7 +39,16 @@ class WatchlistListCreateView(generics.ListCreateAPIView):
         return WatchlistListSerializer
 
     def get_queryset(self) -> QuerySet:
-        return Watchlist.objects.filter(user=self.request.user).prefetch_related("items")
+        if getattr(self, "swagger_fake_view", False) or not self.request.user.is_authenticated:
+            return Watchlist.objects.none()
+        return Watchlist.objects.filter(user=self.request.user).prefetch_related(
+            "items__security__sector"
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["price_map"] = _get_price_map()
+        return context
 
     def perform_create(self, serializer):
         try:
@@ -48,7 +66,16 @@ class WatchlistDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self) -> QuerySet:
-        return Watchlist.objects.filter(user=self.request.user).prefetch_related("items")
+        if getattr(self, "swagger_fake_view", False) or not self.request.user.is_authenticated:
+            return Watchlist.objects.none()
+        return Watchlist.objects.filter(user=self.request.user).prefetch_related(
+            "items__security__sector"
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["price_map"] = _get_price_map()
+        return context
 
 
 class WatchlistItemCreateView(generics.CreateAPIView):
@@ -56,6 +83,11 @@ class WatchlistItemCreateView(generics.CreateAPIView):
 
     serializer_class = WatchlistItemSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["price_map"] = _get_price_map()
+        return context
 
     def get_watchlist(self) -> Watchlist:
         try:
@@ -82,16 +114,23 @@ class WatchlistItemDeleteView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk: int, item_pk: int) -> Response:
-        try:
-            item = WatchlistItem.objects.get(
-                pk=item_pk,
+        item = WatchlistItem.objects.filter(
+            pk=item_pk,
+            watchlist__pk=pk,
+            watchlist__user=request.user,
+        ).first()
+        if not item:
+            item = WatchlistItem.objects.filter(
+                security_id=item_pk,
                 watchlist__pk=pk,
                 watchlist__user=request.user,
-            )
+            ).first()
+
+        if item:
             item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except WatchlistItem.DoesNotExist:
-            return Response(
-                {"detail": "Watchlist item not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+
+        return Response(
+            {"detail": "Watchlist item not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )

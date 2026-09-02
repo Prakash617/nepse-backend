@@ -155,3 +155,39 @@ class TestWatchlistItems:
         response = api_client.get(f"/api/v1/watchlists/{wl.pk}/")
         assert response.data["item_count"] == 2
         assert len(response.data["items"]) == 2
+
+    def test_watchlist_item_market_data(self, api_client, user, security):
+        from decimal import Decimal
+        from apps.prices.models import DailyPrice
+        DailyPrice.objects.create(
+            security=security,
+            trading_date="2026-09-02",
+            close=Decimal("540.00"),
+            ltp=Decimal("540.00"),
+            previous_close=Decimal("530.00"),
+            point_change=Decimal("10.00"),
+            percentage_change=Decimal("1.8868"),
+            volume=1000,
+            turnover=Decimal("540000.00"),
+        )
+        api_client.force_authenticate(user=user)
+        wl = Watchlist.objects.create(user=user, name="My Stocks")
+        WatchlistItem.objects.create(watchlist=wl, security=security)
+        response = api_client.get(f"/api/v1/watchlists/{wl.pk}/")
+        item = response.data["items"][0]
+        assert item["security_symbol"] == "TEST"
+        assert item["close"] == "540.00"
+        assert item["ltp"] == "540.00"
+        assert item["previous_close"] == "530.00"
+        assert item["point_change"] == "10.0000"
+        assert item["percentage_change"] == "1.8868"
+        assert item["volume"] == 1000
+        assert item["trading_date"] == "2026-09-02"
+
+    def test_delete_item_by_security_id(self, api_client, user, security):
+        api_client.force_authenticate(user=user)
+        wl = Watchlist.objects.create(user=user, name="My Watchlist")
+        WatchlistItem.objects.create(watchlist=wl, security=security)
+        response = api_client.delete(f"/api/v1/watchlists/{wl.pk}/items/{security.pk}/")
+        assert response.status_code == 204
+        assert WatchlistItem.objects.count() == 0

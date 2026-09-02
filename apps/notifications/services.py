@@ -1,12 +1,16 @@
-"""Alert evaluation service.
+"""Notification and Alert Evaluation Service.
 
-Checks active alerts against the latest price data and creates notifications
-when conditions are met. Each alert is evaluated independently.
+Centralized service for creating, managing, and broadcasting user notifications,
+as well as evaluating market alerts against live price data.
 """
 
 import logging
 from datetime import date
+from typing import Any
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
@@ -14,7 +18,118 @@ from apps.alerts.models import Alert
 from apps.notifications.models import Notification
 from apps.prices.models import DailyPrice
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+class NotificationService:
+    """Centralized service for managing and dispatching notifications."""
+
+    @staticmethod
+    def create(
+        user: Any,
+        notification_type: str = Notification.NotificationType.SYSTEM,
+        title: str = "",
+        message: str = "",
+        security: Any = None,
+        alert: Any = None,
+        data: dict[str, Any] | None = None,
+    ) -> Notification:
+        """Create a notification in the database and broadcast it via WebSockets in real time."""
+        if data is None:
+            data = {}
+
+        # If security is passed, attach symbol/name to metadata if not present
+        if security is not None:
+            if "symbol" not in data:
+                data["symbol"] = getattr(security, "symbol", "")
+            if "company_name" not in data:
+                data["company_name"] = getattr(security, "company_name", "")
+
+        with transaction.atomic():
+            notification = Notification.objects.create(
+                user=user,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                security=security,
+                alert=alert,
+                data=data,
+            )
+
+        # Broadcast via Channels to user's private group
+        try:
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                from apps.notifications.serializers import NotificationSerializer
+
+                payload = NotificationSerializer(notification).data
+                async_to_sync(channel_layer.group_send)(
+                    f"user_{user.id}",
+                    {
+                        "type": "notification.message",
+                        "notification": payload,
+                    },
+                )
+                logger.debug("Dispatched notification %s to group user_%s", notification.id, user.id)
+        except Exception as e:
+            logger.warning("Failed to broadcast notification %s over WebSocket: %s", notification.id, e)
+
+        # Dispatch real browser push notification
+        try:
+            from apps.notifications.tasks import send_push_notification_task
+
+            send_push_notification_task.delay(
+                user_id=user.id,
+                title=title,
+                body=message,
+                data=data,
+            )
+        except Exception:
+            # Fallback to synchronous push if Celery broker is unavailable or in eager mode
+            try:
+                from apps.notifications.webpush import PushNotificationService
+
+                PushNotificationService.send_push_to_user(
+                    user=user,
+                    title=title,
+                    body=message,
+                    data=data,
+                )
+            except Exception as e:
+                logger.warning("Failed to dispatch push notification for user %s: %s", user.id, e)
+
+        return notification
+
+    @staticmethod
+    def mark_as_read(user: Any, notification_id: int) -> Notification | None:
+        """Mark a specific notification as read for a user."""
+        try:
+            notification = Notification.objects.get(user=user, id=notification_id)
+            if not notification.is_read:
+                notification.is_read = True
+                notification.save(update_fields=["is_read"])
+            return notification
+        except Notification.DoesNotExist:
+            return None
+
+    @staticmethod
+    def mark_all_as_read(user: Any) -> int:
+        """Mark all unread notifications as read for a user."""
+        return Notification.objects.filter(user=user, is_read=False).update(is_read=True)
+
+    @staticmethod
+    def delete(user: Any, notification_id: int) -> bool:
+        """Delete a notification belonging to a user."""
+        deleted_count, _ = Notification.objects.filter(user=user, id=notification_id).delete()
+        return deleted_count > 0
+
+    @staticmethod
+    def get_unread_count(user: Any) -> int:
+        """Get the count of unread notifications for a user."""
+        if not user or not user.is_authenticated:
+            return 0
+        return Notification.objects.filter(user=user, is_read=False).count()
 
 
 def _get_latest_price(security_id: int) -> DailyPrice | None:
@@ -30,31 +145,28 @@ def _evaluate_condition(
     alert: Alert,
     latest_price: DailyPrice,
 ) -> bool:
-    """Evaluate whether an alert condition is met.
-
-    Returns True if the condition triggers.
-    """
+    """Evaluate whether an alert condition is met."""
     ltp = latest_price.ltp
     if ltp is None:
         return False
 
     if alert.condition == Alert.ConditionType.PRICE_ABOVE:
-        return ltp > alert.threshold
+        return ltp >= alert.threshold
 
     if alert.condition == Alert.ConditionType.PRICE_BELOW:
-        return ltp < alert.threshold
+        return ltp <= alert.threshold
 
     if alert.condition == Alert.ConditionType.PERCENT_CHANGE_UP:
         pct = latest_price.percentage_change
         if pct is None:
             return False
-        return pct > alert.threshold
+        return pct >= alert.threshold
 
     if alert.condition == Alert.ConditionType.PERCENT_CHANGE_DOWN:
         pct = latest_price.percentage_change
         if pct is None:
             return False
-        return pct < -alert.threshold
+        return pct <= -alert.threshold
 
     return False
 
@@ -63,14 +175,14 @@ def _build_notification_title(alert: Alert, latest_price: DailyPrice) -> str:
     """Build a human-readable notification title."""
     symbol = alert.security.symbol
     if alert.condition == Alert.ConditionType.PRICE_ABOVE:
-        return f"{symbol} is above {alert.threshold}"
+        return f"Price Alert: {symbol} reached {alert.threshold}"
     if alert.condition == Alert.ConditionType.PRICE_BELOW:
-        return f"{symbol} is below {alert.threshold}"
+        return f"Price Alert: {symbol} fell to {alert.threshold}"
     if alert.condition == Alert.ConditionType.PERCENT_CHANGE_UP:
-        return f"{symbol} changed up by more than {alert.threshold}%"
+        return f"Gain Alert: {symbol} is up +{alert.threshold}%"
     if alert.condition == Alert.ConditionType.PERCENT_CHANGE_DOWN:
-        return f"{symbol} changed down by more than {alert.threshold}%"
-    return f"Alert triggered for {symbol}"
+        return f"Drop Alert: {symbol} is down -{alert.threshold}%"
+    return f"Price Alert: {symbol}"
 
 
 def _build_notification_message(alert: Alert, latest_price: DailyPrice) -> str:
@@ -80,75 +192,13 @@ def _build_notification_message(alert: Alert, latest_price: DailyPrice) -> str:
     pct = latest_price.percentage_change
     pct_str = f"{pct}%" if pct is not None else "N/A"
     return (
-        f"{alert.security.symbol} (LTP: {ltp}) on {date_str}. "
-        f"Condition: {alert.get_condition_display()} {alert.threshold}. "
-        f"Change: {pct_str}."
+        f"{alert.security.symbol} current LTP is Rs. {ltp} ({pct_str}) on {date_str}. "
+        f"Triggered condition: {alert.get_condition_display()} {alert.threshold}."
     )
 
 
-def evaluate_alerts() -> dict[str, int]:
-    """Evaluate all active alerts against latest price data.
+def evaluate_alerts(security_ids: list[int] | None = None) -> dict[str, int]:
+    """Evaluate alerts against latest market data using AlertEngine."""
+    from apps.alerts.engine import AlertEngine
 
-    Creates notifications for triggered alerts and updates last_triggered_at.
-    Idempotent: re-running immediately produces no duplicate notifications
-    (because triggered alerts get last_triggered_at updated to now).
-
-    Returns:
-        Dict with counts of evaluated, triggered, and skipped alerts.
-    """
-    now = timezone.now()
-    today = date.today()
-
-    active_alerts = Alert.objects.filter(is_active=True).select_related("security")
-
-    result = {"evaluated": 0, "triggered": 0, "skipped": 0, "errors": 0}
-
-    for alert in active_alerts:
-        result["evaluated"] += 1
-
-        try:
-            latest_price = _get_latest_price(alert.security_id)
-            if latest_price is None:
-                result["skipped"] += 1
-                continue
-
-            # Skip if already triggered today
-            if (
-                alert.last_triggered_at is not None
-                and alert.last_triggered_at.date() == today
-            ):
-                result["skipped"] += 1
-                continue
-
-            if _evaluate_condition(alert, latest_price):
-                with transaction.atomic():
-                    Notification.objects.create(
-                        user=alert.user,
-                        alert=alert,
-                        title=_build_notification_title(alert, latest_price),
-                        message=_build_notification_message(alert, latest_price),
-                    )
-                    alert.last_triggered_at = now
-                    alert.save(update_fields=["last_triggered_at"])
-                result["triggered"] += 1
-                logger.info(
-                    "Alert triggered: %s %s %s",
-                    alert.user.username,
-                    alert.security.symbol,
-                    alert.condition,
-                )
-            else:
-                result["skipped"] += 1
-
-        except Exception:
-            result["errors"] += 1
-            logger.exception("Error evaluating alert %s", alert.pk)
-
-    logger.info(
-        "Alert evaluation complete: evaluated=%d, triggered=%d, skipped=%d, errors=%d",
-        result["evaluated"],
-        result["triggered"],
-        result["skipped"],
-        result["errors"],
-    )
-    return result
+    return AlertEngine.evaluate_securities(security_ids=security_ids)

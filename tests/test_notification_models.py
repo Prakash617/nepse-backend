@@ -20,17 +20,23 @@ class TestNotification:
             user=user,
             title="Test Alert",
             message="NABIL is above 1000",
+            notification_type=Notification.NotificationType.PRICE_ALERT,
+            data={"symbol": "NABIL", "price": "1050"},
         )
         assert notif.pk is not None
         assert notif.is_read is False
         assert notif.alert is None
-        assert str(notif) == "testuser - Test Alert"
+        assert notif.notification_type == "price_alert"
+        assert notif.data == {"symbol": "NABIL", "price": "1050"}
+        assert str(notif) == "testuser - [price_alert] Test Alert"
 
     def test_default_is_read_false(self, user):
         notif = Notification.objects.create(
             user=user, title="Test", message="Test message"
         )
         assert notif.is_read is False
+        assert notif.notification_type == Notification.NotificationType.SYSTEM
+        assert notif.data == {}
 
     def test_ordering(self, user):
         n1 = Notification.objects.create(user=user, title="First", message="msg1")

@@ -57,11 +57,16 @@ def parse_today_prices(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "high": _get_optional(item, "highPrice"),
                 "low": _get_optional(item, "lowPrice"),
                 "close": _get_optional(item, "closePrice"),
+                "prev_close": _get_optional(item, "previousDayClosePrice")
+                    or _get_optional(item, "previousClose")
+                    or _get_optional(item, "prevClose"),
                 "volume": _get_optional(item, "totalTradedVolume")
                     or _get_optional(item, "totalTradedQuantity"),
                 "turnover": _get_optional(item, "totalTradedValue"),
-                "change": _get_optional(item, "pointChange"),
-                "change_percent": _get_optional(item, "percentChange"),
+                "change": _get_optional(item, "pointChange")
+                    or _get_optional(item, "change"),
+                "change_percent": _get_optional(item, "percentageChange")
+                    or _get_optional(item, "percentChange"),
             }
         )
     return results
@@ -298,11 +303,19 @@ def parse_top_stocks(data: dict[str, Any] | list[dict[str, Any]]) -> list[dict[s
             {
                 "symbol": _get_optional(item, "symbol"),
                 "nepse_id": _get_optional(item, "securityId"),
-                "ltp": _get_optional(item, "lastTradedPrice"),
-                "change": _get_optional(item, "pointChange"),
-                "percent_change": _get_optional(item, "percentChange"),
-                "volume": _get_optional(item, "totalTradedVolume"),
-                "turnover": _get_optional(item, "totalTradedValue"),
+                "ltp": _get_optional(item, "lastTradedPrice")
+                    or _get_optional(item, "ltp")
+                    or _get_optional(item, "closingPrice")
+                    or _get_optional(item, "cp"),
+                "change": _get_optional(item, "pointChange")
+                    or _get_optional(item, "change"),
+                "percent_change": _get_optional(item, "percentageChange")
+                    or _get_optional(item, "percentChange"),
+                "volume": _get_optional(item, "totalTradedVolume")
+                    or _get_optional(item, "shareTraded")
+                    or _get_optional(item, "volume"),
+                "turnover": _get_optional(item, "totalTradedValue")
+                    or _get_optional(item, "turnover"),
             }
         )
     return results

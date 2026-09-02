@@ -1,11 +1,18 @@
 from django.db.models import Q, QuerySet
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
+from rest_framework.pagination import PageNumberPagination
 
 from apps.prices.models import DailyPrice, IntradayPrice
 from apps.prices.serializers import DailyPriceSerializer, IntradayPriceSerializer
 from apps.securities.models import Security
 from apps.securities.serializers import SecurityDetailSerializer, SecurityListSerializer
+
+
+class HistoryPagination(PageNumberPagination):
+    page_size = 5000
+    page_size_query_param = "page_size"
+    max_page_size = 10000
 
 
 class SecurityListView(generics.ListAPIView):
@@ -56,6 +63,7 @@ class SecurityHistoryView(generics.ListAPIView):
     serializer_class = DailyPriceSerializer
     lookup_field = "symbol"
     queryset = DailyPrice.objects.none()
+    pagination_class = HistoryPagination
 
     def get_queryset(self) -> QuerySet:
         if getattr(self, "swagger_fake_view", False):
@@ -81,6 +89,7 @@ class SecurityIntradayView(generics.ListAPIView):
     serializer_class = IntradayPriceSerializer
     lookup_field = "symbol"
     queryset = IntradayPrice.objects.none()
+    pagination_class = HistoryPagination
 
     def get_queryset(self) -> QuerySet:
         if getattr(self, "swagger_fake_view", False):

@@ -2,9 +2,16 @@
 
 from django.db.models import QuerySet
 from rest_framework import generics
+from rest_framework.pagination import PageNumberPagination
 
 from apps.indices.models import IndexSnapshot, MarketIndex
 from apps.indices.serializers import IndexSnapshotSerializer, MarketIndexSerializer
+
+
+class IndexHistoryPagination(PageNumberPagination):
+    page_size = 5000
+    page_size_query_param = "page_size"
+    max_page_size = 10000
 
 
 class MarketIndexListView(generics.ListAPIView):
@@ -22,6 +29,7 @@ class MarketIndexDetailView(generics.RetrieveAPIView):
 class IndexHistoryView(generics.ListAPIView):
     serializer_class = IndexSnapshotSerializer
     queryset = IndexSnapshot.objects.none()
+    pagination_class = IndexHistoryPagination
 
     def get_queryset(self) -> QuerySet:
         if getattr(self, "swagger_fake_view", False):

@@ -19,6 +19,11 @@ dependencies = [
     "python-decouple>=3.8,<4.0",
     "httpx>=0.28.1",
     "django-cors-headers>=4.9.0",
+    "channels>=4.0",
+    "channels-redis>=4.2",
+    "daphne>=4.1",
+    "pywebpush>=2.5.0",
+    "cryptography>=50.0.1",
 ]
 
 [project.optional-dependencies]
