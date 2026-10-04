@@ -1,7 +1,14 @@
 import os
 from pathlib import Path
 
+from decouple import RepositoryEnv
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    for key, val in RepositoryEnv(env_file).data.items():
+        os.environ.setdefault(key, val)
 
 # Security
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "insecure-dev-key-change-in-production")
@@ -166,7 +173,7 @@ REST_FRAMEWORK = {
         "user": "1000/hour",
     },
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
+        "apps.users.authentication.CsrfExemptSessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [

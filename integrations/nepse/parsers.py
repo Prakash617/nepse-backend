@@ -264,17 +264,61 @@ def parse_price_history(data: dict[str, Any]) -> list[dict[str, Any]]:
         return []
     results = []
     for item in content:
+        if not isinstance(item, dict):
+            continue
+        security_obj = _get_optional(item, "security")
+        security_id = _get_optional(item, "securityId")
+        symbol = _get_optional(item, "symbol")
+        if isinstance(security_obj, dict):
+            if security_id is None:
+                security_id = security_obj.get("id")
+            if symbol is None:
+                symbol = security_obj.get("symbol")
+
+        open_val = _get_optional(item, "openPrice")
+        if open_val is None:
+            open_val = _get_optional(item, "open")
+
+        high_val = _get_optional(item, "highPrice")
+        if high_val is None:
+            high_val = _get_optional(item, "high")
+
+        low_val = _get_optional(item, "lowPrice")
+        if low_val is None:
+            low_val = _get_optional(item, "low")
+
+        close_val = _get_optional(item, "closePrice")
+        if close_val is None:
+            close_val = _get_optional(item, "close")
+
+        prev_close = (
+            _get_optional(item, "previousDayClosePrice")
+            or _get_optional(item, "previousClose")
+            or _get_optional(item, "prevClose")
+        )
+        volume = (
+            _get_optional(item, "totalTradedQuantity")
+            or _get_optional(item, "totalTradedVolume")
+            or _get_optional(item, "volume")
+        )
+        turnover = (
+            _get_optional(item, "totalTradedValue")
+            or _get_optional(item, "turnover")
+        )
+
         results.append(
             {
-                "nepse_id": _get_optional(item, "securityId"),
+                "symbol": symbol,
+                "nepse_id": security_id,
                 "business_date": _get_optional(item, "businessDate"),
-                "ltp": _get_optional(item, "lastTradedPrice"),
-                "open": _get_optional(item, "openPrice"),
-                "high": _get_optional(item, "highPrice"),
-                "low": _get_optional(item, "lowPrice"),
-                "close": _get_optional(item, "closePrice"),
-                "volume": _get_optional(item, "totalTradedVolume"),
-                "turnover": _get_optional(item, "totalTradedValue"),
+                "ltp": _get_optional(item, "lastTradedPrice") or close_val,
+                "open": open_val,
+                "high": high_val,
+                "low": low_val,
+                "close": close_val,
+                "prev_close": prev_close,
+                "volume": volume,
+                "turnover": turnover,
             }
         )
     return results

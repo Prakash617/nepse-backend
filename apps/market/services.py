@@ -13,6 +13,7 @@ from django.db import transaction
 
 from apps.common.sync import SyncResult
 from apps.market.models import MarketSnapshot
+from integrations.nepse import NepseClient
 
 logger = logging.getLogger(__name__)
 
@@ -263,3 +264,103 @@ def _apply_snapshot(trading_date: date, snapshot_data: dict[str, Any], result: S
         result.skipped,
         result.failed,
     )
+
+
+def get_current_market_status(client: Any = None) -> dict[str, Any]:
+    """Determine current NEPSE market status (live or closed).
+
+    Tries upstream NEPSE client first; falls back to NEPSE market trading hours
+    (Sun-Thu, 11:00 AM - 3:00 PM Asia/Kathmandu) if upstream is unreachable or in tests.
+    """
+    import zoneinfo
+    from django.core.cache import cache
+    from django.db.models import Max
+    from django.utils import timezone
+
+    from apps.prices.models import DailyPrice
+
+    now_npt = timezone.now().astimezone(zoneinfo.ZoneInfo("Asia/Kathmandu"))
+
+    # Simulation check: allow tests and demo simulation to force market state
+    simulated_market_open = cache.get("nepse_simulation_market_open")
+    if simulated_market_open is not None:
+        is_open = bool(simulated_market_open)
+        latest_date_res = DailyPrice.objects.aggregate(latest=Max("trading_date"))
+        latest_date = latest_date_res.get("latest")
+        return {
+            "is_open": is_open,
+            "status": "LIVE" if is_open else "CLOSED",
+            "as_of": now_npt.isoformat(),
+            "trading_date": latest_date.isoformat() if latest_date else now_npt.date().isoformat(),
+            "source": "simulation",
+            "message": "Market is LIVE (Simulated)" if is_open else "Market is CLOSED (Simulated)",
+            "detail": "Simulation — Continuous Trading Active" if is_open else "Simulation — Market is closed",
+            "trading_hours": "Sunday - Thursday, 11:00 AM - 3:00 PM NPT",
+        }
+
+    upstream_status = None
+    if client is None:
+        try:
+            client = NepseClient()
+        except Exception as e:
+            logger.debug("Could not initialize NepseClient: %s", e)
+            client = None
+
+    if client is not None:
+        try:
+            upstream_status = client.get_market_status()
+        except Exception as e:
+            logger.debug("Failed to query market status from upstream: %s", e)
+            upstream_status = None
+
+    weekday = now_npt.weekday()  # Monday=0 ... Sunday=6
+    is_trading_day = weekday in (6, 0, 1, 2, 3)
+    minutes_from_midnight = now_npt.hour * 60 + now_npt.minute
+
+    if upstream_status is not None and "is_open" in upstream_status:
+        is_open = bool(upstream_status["is_open"])
+        source = "nepse_api"
+        if is_open:
+            detail = "Continuous Trading Session"
+        else:
+            if not is_trading_day:
+                detail = "Weekend — Market is closed"
+            elif minutes_from_midnight < (11 * 60):
+                detail = "Closed — Opens at 11:00 AM NPT"
+            elif minutes_from_midnight >= (15 * 60):
+                detail = "Closed for today — Closed at 3:00 PM NPT"
+            else:
+                detail = "Market is currently closed"
+    else:
+        # Schedule-based evaluation
+        source = "schedule_fallback"
+        if not is_trading_day:
+            is_open = False
+            detail = "Weekend — Market is closed"
+        elif minutes_from_midnight < (10 * 60 + 30):
+            is_open = False
+            detail = "Closed — Opens today at 11:00 AM NPT"
+        elif (10 * 60 + 30) <= minutes_from_midnight < (11 * 60):
+            is_open = False
+            detail = "Pre-Open Session (10:30 AM – 11:00 AM NPT)"
+        elif (11 * 60) <= minutes_from_midnight < (15 * 60):
+            is_open = True
+            detail = "Continuous Trading Live — Closes at 3:00 PM NPT"
+        else:
+            is_open = False
+            detail = "Closed for today — Closed at 3:00 PM NPT"
+
+    latest_date_res = DailyPrice.objects.aggregate(latest=Max("trading_date"))
+    latest_date = latest_date_res.get("latest")
+
+    return {
+        "is_open": is_open,
+        "status": "LIVE" if is_open else "CLOSED",
+        "as_of": now_npt.isoformat(),
+        "trading_date": latest_date.isoformat() if latest_date else None,
+        "source": source,
+        "message": "Market is LIVE" if is_open else "Market is CLOSED",
+        "detail": detail,
+        "trading_hours": "Sunday - Thursday, 11:00 AM - 3:00 PM NPT",
+    }
+

@@ -9,7 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.market.models import MarketSnapshot
-from apps.market.serializers import MarketSummarySerializer
+from apps.market.serializers import MarketStatusSerializer, MarketSummarySerializer
+from apps.market.services import get_current_market_status
 from apps.prices.models import DailyPrice
 
 
@@ -224,3 +225,18 @@ class MarketVolumeView(APIView):
             return min(limit, 100)
         except (ValueError, TypeError):
             return 20
+
+
+class MarketStatusView(APIView):
+    """Return the current NEPSE market status (LIVE / CLOSED)."""
+
+    def get(self, request: Request) -> Response:
+        cache_key = "nepse_market_status"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        data = get_current_market_status()
+        cache.set(cache_key, data, timeout=30)
+        return Response(data)
+

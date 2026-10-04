@@ -55,3 +55,15 @@ class MarketRankingSerializer(serializers.ModelSerializer):
             "turnover",
             "trading_date",
         ]
+
+
+class MarketStatusSerializer(serializers.Serializer):
+    is_open = serializers.BooleanField()
+    status = serializers.CharField()
+    as_of = serializers.CharField()
+    trading_date = serializers.CharField(allow_null=True)
+    source = serializers.CharField()
+    message = serializers.CharField()
+    detail = serializers.CharField()
+    trading_hours = serializers.CharField()
+

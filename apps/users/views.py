@@ -6,7 +6,8 @@ from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -15,7 +16,11 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
+from apps.users.authentication import CsrfExemptSessionAuthentication
+
+
 @api_view(["POST"])
+@authentication_classes([CsrfExemptSessionAuthentication, BasicAuthentication])
 @permission_classes([AllowAny])
 def register_view(request: Request) -> Response:
     """Register a new user."""
@@ -65,6 +70,7 @@ def register_view(request: Request) -> Response:
 
 
 @api_view(["POST"])
+@authentication_classes([CsrfExemptSessionAuthentication, BasicAuthentication])
 @permission_classes([AllowAny])
 def login_view(request: Request) -> Response:
     """Log in a user."""
@@ -88,8 +94,9 @@ def login_view(request: Request) -> Response:
     )
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@api_view(["POST", "GET"])
+@authentication_classes([CsrfExemptSessionAuthentication, BasicAuthentication])
+@permission_classes([AllowAny])
 def logout_view(request: Request) -> Response:
     """Log out the current user."""
     logout(request)
