@@ -5,9 +5,9 @@ from typing import Any
 
 from django.conf import settings
 from django.db.models import QuerySet
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,20 +15,20 @@ from rest_framework.views import APIView
 from apps.notifications.models import Notification, PushSubscription, TelegramSubscription
 from apps.notifications.serializers import (
     NotificationSerializer,
-    UnreadCountSerializer,
-    PushSubscriptionCreateSerializer,
-    PushUnsubscribeSerializer,
     PushStatusSerializer,
+    PushSubscriptionCreateSerializer,
     PushTestResponseSerializer,
+    PushUnsubscribeSerializer,
+    UnreadCountSerializer,
 )
 from apps.notifications.services import NotificationService
-from apps.notifications.webpush import PushNotificationService
 from apps.notifications.telegram import (
-    get_bot_username,
     generate_verification_code,
-    send_test_telegram,
+    get_bot_username,
     process_telegram_update,
+    send_test_telegram,
 )
+from apps.notifications.webpush import PushNotificationService
 
 logger = logging.getLogger(__name__)
 

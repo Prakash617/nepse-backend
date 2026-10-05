@@ -1,9 +1,10 @@
 """Management command to create or reset the demo account."""
 
 from django.core.management.base import BaseCommand
+
+from apps.securities.models import Security
 from apps.users.models import User
 from apps.watchlist.models import Watchlist, WatchlistItem
-from apps.securities.models import Security
 
 
 class Command(BaseCommand):

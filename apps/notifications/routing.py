@@ -1,6 +1,7 @@
 """WebSocket URL routing for notifications."""
 
-from django.urls import re_path, path
+from django.urls import path, re_path
+
 from apps.notifications.consumers import NotificationConsumer
 
 websocket_urlpatterns = [

@@ -104,8 +104,8 @@ class WatchlistItemSerializer(serializers.ModelSerializer):
                 else:
                     sec = Security.objects.get(symbol__iexact=val)
                 attrs["security"] = sec
-            except Security.DoesNotExist:
-                raise serializers.ValidationError({"security_input": f"Security '{security_input}' not found."})
+            except Security.DoesNotExist as err:
+                raise serializers.ValidationError({"security_input": f"Security '{security_input}' not found."}) from err
 
         if not self.instance and "security" not in attrs:
             raise serializers.ValidationError({"security_input": "Security is required."})

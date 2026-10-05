@@ -31,6 +31,14 @@ def sync_daily_prices_task(business_date: str | None = None) -> dict:
         raise
 
     result = sync_daily_prices(prices_data)
+
+    if result.created or result.updated:
+        try:
+            from apps.notifications.tasks import evaluate_alerts_task
+            evaluate_alerts_task.delay()
+        except Exception as err:
+            logger.warning("Failed to trigger evaluate_alerts_task after daily price sync: %s", err)
+
     return {
         "created": result.created,
         "updated": result.updated,
@@ -54,6 +62,14 @@ def sync_intraday_prices_task() -> dict:
         raise
 
     result = sync_intraday_prices(trades_data)
+
+    if result.created or result.updated:
+        try:
+            from apps.notifications.tasks import evaluate_alerts_task
+            evaluate_alerts_task.delay()
+        except Exception as err:
+            logger.warning("Failed to trigger evaluate_alerts_task after intraday price sync: %s", err)
+
     return {
         "created": result.created,
         "updated": result.updated,

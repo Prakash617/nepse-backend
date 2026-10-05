@@ -1,6 +1,7 @@
 """Tests for alert models and state transitions."""
 
 from decimal import Decimal
+
 import pytest
 from django.contrib.auth import get_user_model
 

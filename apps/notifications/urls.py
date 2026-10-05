@@ -1,21 +1,22 @@
 """Notification, Web Push, and Telegram URL routing."""
 
 from django.urls import path
+
 from apps.notifications.views import (
-    NotificationListView,
-    NotificationDetailView,
-    UnreadCountView,
-    MarkReadView,
     MarkAllReadView,
-    PushSubscribeView,
-    PushUnsubscribeView,
+    MarkReadView,
+    NotificationDetailView,
+    NotificationListView,
     PushStatusView,
+    PushSubscribeView,
     PushTestView,
-    TelegramStatusView,
+    PushUnsubscribeView,
     TelegramConnectView,
     TelegramDisconnectView,
+    TelegramStatusView,
     TelegramTestView,
     TelegramWebhookView,
+    UnreadCountView,
 )
 
 app_name = "notifications"

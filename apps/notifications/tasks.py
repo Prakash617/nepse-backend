@@ -2,12 +2,13 @@
 
 import logging
 from typing import Any
+
 from celery import shared_task
 from django.contrib.auth import get_user_model
 
 from apps.notifications.services import evaluate_alerts
-from apps.notifications.webpush import PushNotificationService
 from apps.notifications.telegram import send_telegram_alert
+from apps.notifications.webpush import PushNotificationService
 
 logger = logging.getLogger(__name__)
 User = get_user_model()

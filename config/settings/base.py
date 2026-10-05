@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from celery.schedules import crontab
 from decouple import RepositoryEnv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -198,7 +199,25 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "Asia/Kathmandu"
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+CELERY_BEAT_SCHEDULE = {
+    "sync-daily-prices": {
+        "task": "prices.sync_daily_prices",
+        "schedule": crontab(minute="*/5", hour="10-15", day_of_week="0-4"),
+    },
+    "sync-intraday-prices": {
+        "task": "prices.sync_intraday_prices",
+        "schedule": crontab(minute="*/5", hour="10-15", day_of_week="0-4"),
+    },
+    "sync-market-snapshot": {
+        "task": "market.sync_market_snapshot",
+        "schedule": crontab(minute="*/5", hour="10-15", day_of_week="0-4"),
+    },
+    "evaluate-alerts": {
+        "task": "apps.notifications.tasks.evaluate_alerts_task",
+        "schedule": crontab(minute="*/2", hour="10-15", day_of_week="0-4"),
+    },
+}
 
 # NEPSE API
 NEPSE_API_BASE_URL = os.environ.get("NEPSE_API_BASE_URL", "https://www.nepalstock.com")

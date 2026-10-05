@@ -3,9 +3,11 @@
 Delivers instant market and price alert notifications to connected user Telegram accounts.
 """
 
+import html
 import logging
 import secrets
 from typing import Any
+
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -77,22 +79,29 @@ def format_alert_message(title: str, body: str, data: dict[str, Any] | None = No
     target = data.get("target_price") or data.get("threshold")
     condition = data.get("condition", "")
 
+    esc_title = html.escape(str(title))
+    esc_body = html.escape(str(body))
+    esc_symbol = html.escape(str(symbol))
+    esc_condition = html.escape(str(condition))
+    esc_price = html.escape(str(price)) if price is not None else None
+    esc_target = html.escape(str(target)) if target is not None else None
+
     lines = [
         "🔔 <b>NEPSE MARKET ALERT</b>",
         "",
-        f"<b>{title}</b>",
-        f"{body}",
+        f"<b>{esc_title}</b>",
+        f"{esc_body}",
         "",
     ]
 
     if symbol:
-        lines.append(f"• <b>Security:</b> <code>{symbol}</code>")
+        lines.append(f"• <b>Security:</b> <code>{esc_symbol}</code>")
     if price is not None:
-        lines.append(f"• <b>Current Price:</b> Rs. {price}")
+        lines.append(f"• <b>Current Price:</b> Rs. {esc_price}")
     if target is not None:
-        lines.append(f"• <b>Target Threshold:</b> Rs. {target}")
+        lines.append(f"• <b>Target Threshold:</b> Rs. {esc_target}")
     if condition:
-        lines.append(f"• <b>Condition:</b> {condition}")
+        lines.append(f"• <b>Condition:</b> {esc_condition}")
 
     lines.append("")
     lines.append("⚡ <i>Delivered by NEPSE Platform</i>")
@@ -125,9 +134,10 @@ def send_test_telegram(user: Any) -> bool:
     if not subscriptions.exists():
         return False
 
+    esc_username = html.escape(str(user.username))
     text = (
         "✅ <b>NEPSE Telegram Bot Connected!</b>\n\n"
-        f"Hello <b>{user.username}</b>!\n"
+        f"Hello <b>{esc_username}</b>!\n"
         "Your Telegram account is successfully connected to the <b>NEPSE Platform</b>.\n\n"
         "You will receive instant price targets, volume alerts, and market crossing notifications here in real-time."
     )

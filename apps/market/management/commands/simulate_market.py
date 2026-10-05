@@ -5,29 +5,25 @@ indices movements, and alert evaluation triggers for testing the platform
 without requiring external NEPSE API access.
 """
 
-import math
 import random
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Max
 from django.utils import timezone
 
 from apps.alerts.engine import AlertEngine
 from apps.alerts.models import Alert
-from apps.indices.models import IndexSnapshot, MarketIndex
 from apps.market.models import MarketSnapshot
 from apps.market.services import get_current_market_status
 from apps.prices.models import DailyPrice, IntradayPrice
 from apps.securities.models import Security
 from apps.users.models import User
-from apps.watchlist.models import Watchlist, WatchlistItem
-
+from apps.watchlist.models import WatchlistItem
 
 DEFAULT_SIMULATED_SYMBOLS = [
     "NABIL",
@@ -230,8 +226,6 @@ class Command(BaseCommand):
 
             # Target slightly above (+0.5%) for price cross above
             target_above = Decimal(str(round(current_ltp * 1.005, 2)))
-            # Target slightly below (-0.5%) for price cross below
-            target_below = Decimal(str(round(current_ltp * 0.995, 2)))
 
             # Alert 1: Price Cross Above
             _, created = Alert.objects.get_or_create(
@@ -442,10 +436,32 @@ class Command(BaseCommand):
 
             # Update Market Snapshot total turnover & volume
             snapshot = MarketSnapshot.objects.filter(trading_date=today).first()
+            if not snapshot:
+                prev_snapshot = MarketSnapshot.objects.order_by("-trading_date").first()
+                prev_close = (
+                    prev_snapshot.close
+                    if prev_snapshot and prev_snapshot.close
+                    else Decimal("2600.00")
+                )
+                snapshot = MarketSnapshot.objects.create(
+                    trading_date=today,
+                    open=prev_close,
+                    high=prev_close,
+                    low=prev_close,
+                    close=prev_close,
+                    previous_close=prev_close,
+                    point_change=Decimal("0.00"),
+                    percentage_change=Decimal("0.0000"),
+                    total_volume=0,
+                    total_turnover=Decimal("0.00"),
+                    transactions=0,
+                )
+
             if snapshot:
                 snapshot.total_volume = (snapshot.total_volume or 0) + random.randint(500, 3000)
                 snapshot.transactions = (snapshot.transactions or 0) + random.randint(5, 25)
                 snapshot.save()
+                cache.delete(f"market_summary_{today}")
 
         # Print live ticker line
         alerts_info = f" | {self.style.WARNING(f'⚡ Alerts Fired: {triggered_alerts_total}')}" if triggered_alerts_total else ""

@@ -6,17 +6,16 @@ from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework import status
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.authentication import BasicAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.users.authentication import CsrfExemptSessionAuthentication
+
 User = get_user_model()
 logger = logging.getLogger(__name__)
-
-
-from apps.users.authentication import CsrfExemptSessionAuthentication
 
 
 @api_view(["POST"])

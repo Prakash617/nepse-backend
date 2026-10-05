@@ -2,9 +2,15 @@
 
 import logging
 import time
+
 import requests
 from django.core.management.base import BaseCommand
-from apps.notifications.telegram import get_telegram_token, process_telegram_update, TELEGRAM_API_BASE
+
+from apps.notifications.telegram import (
+    TELEGRAM_API_BASE,
+    get_telegram_token,
+    process_telegram_update,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +32,7 @@ class Command(BaseCommand):
             return
 
         once = options["once"]
-        self.stdout.write(self.style.SUCCESS(f"Starting Telegram Bot polling daemon..."))
+        self.stdout.write(self.style.SUCCESS("Starting Telegram Bot polling daemon..."))
 
         offset = 0
         while True:

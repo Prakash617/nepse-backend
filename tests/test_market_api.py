@@ -82,6 +82,28 @@ class TestMarketSummary:
         assert response.status_code == 200
         assert "detail" in response.data
 
+    def test_summary_fallback_to_latest_snapshot(self, api_client, market_data):
+        # Create a newer DailyPrice with no corresponding MarketSnapshot
+        nabil = Security.objects.get(symbol="NABIL")
+        DailyPrice.objects.create(
+            security=nabil,
+            trading_date=date(2026, 1, 16),
+            open=Decimal("105.00"),
+            high=Decimal("110.00"),
+            low=Decimal("104.00"),
+            close=Decimal("108.00"),
+            ltp=Decimal("108.00"),
+            previous_close=Decimal("103.00"),
+            volume=500000,
+            turnover=Decimal("54000000.00"),
+            percentage_change=Decimal("4.8544"),
+        )
+        response = api_client.get("/api/v1/market/summary/")
+        assert response.status_code == 200
+        # Should gracefully return the 2026-01-15 snapshot rather than "No market snapshot available"
+        assert response.data["trading_date"] == "2026-01-15"
+        assert response.data["total_volume"] == 10000000
+
 
 @pytest.mark.django_db
 class TestMarketGainers:

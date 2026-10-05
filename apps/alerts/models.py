@@ -5,7 +5,6 @@ Supports flexible condition types, crossing operators, alert states,
 frequency (one-time vs recurring), cooldowns, and notification preferences.
 """
 
-from decimal import Decimal
 from django.conf import settings
 from django.db import models
 

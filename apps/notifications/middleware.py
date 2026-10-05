@@ -1,6 +1,7 @@
 """Authentication middleware for WebSocket connections."""
 
 from urllib.parse import parse_qs
+
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
 from django.contrib.auth import get_user_model

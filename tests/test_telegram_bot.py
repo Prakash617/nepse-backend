@@ -1,20 +1,19 @@
 """Tests for Telegram Bot notification integration, model, APIs, and dispatch."""
 
 from decimal import Decimal
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
-from apps.alerts.models import Alert
 from apps.alerts.engine import AlertEngine
+from apps.alerts.models import Alert
 from apps.notifications.models import TelegramSubscription
 from apps.notifications.telegram import (
-    send_telegram_raw_message,
-    format_alert_message,
-    send_telegram_alert,
-    send_test_telegram,
     process_telegram_update,
+    send_telegram_alert,
+    send_telegram_raw_message,
 )
 from apps.prices.models import DailyPrice
 from apps.securities.models import Security
@@ -204,7 +203,7 @@ class TestTelegramAPI:
 class TestAlertEngineTelegramDispatch:
     @patch("apps.notifications.tasks.send_telegram_notification_task.delay")
     def test_alert_engine_dispatches_telegram(self, mock_task, user, security):
-        alert = Alert.objects.create(
+        Alert.objects.create(
             user=user,
             security=security,
             condition="price_above",

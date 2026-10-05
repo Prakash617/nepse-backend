@@ -5,14 +5,12 @@ as well as evaluating market alerts against live price data.
 """
 
 import logging
-from datetime import date
 from typing import Any
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.utils import timezone
 
 from apps.alerts.models import Alert
 from apps.notifications.models import Notification

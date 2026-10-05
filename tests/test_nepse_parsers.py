@@ -86,6 +86,20 @@ class TestParseSecuritiesList:
         assert result[0]["id"] == 1
         assert result[0]["symbol"] is None
 
+    def test_parse_securities_with_sector_name_and_instrument_type(self) -> None:
+        data = [{
+            "id": 131,
+            "symbol": "NABIL",
+            "companyName": "Nabil Bank Limited",
+            "sectorName": "Commercial Banks",
+            "instrumentType": "Equity",
+        }]
+        result = parse_securities_list(data)
+        assert len(result) == 1
+        assert result[0]["symbol"] == "NABIL"
+        assert result[0]["sector"] == "Commercial Banks"
+        assert result[0]["security_type"] == "Equity"
+
 
 class TestParseSecuritiesSimple:
     def test_parse_simple_securities(self) -> None:

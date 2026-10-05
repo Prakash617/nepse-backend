@@ -158,6 +158,7 @@ class TestWatchlistItems:
 
     def test_watchlist_item_market_data(self, api_client, user, security):
         from decimal import Decimal
+
         from apps.prices.models import DailyPrice
         DailyPrice.objects.create(
             security=security,

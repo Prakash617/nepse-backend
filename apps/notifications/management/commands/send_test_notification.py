@@ -2,6 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
+
 from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 from apps.securities.models import Security

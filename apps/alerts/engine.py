@@ -8,7 +8,6 @@ cooldown enforcement, and dispatches multi-channel notifications (In-App, WebSoc
 import logging
 from datetime import timedelta
 from decimal import Decimal
-from typing import Any
 
 from django.db import transaction
 from django.utils import timezone

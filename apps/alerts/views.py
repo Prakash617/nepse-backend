@@ -4,8 +4,9 @@ All endpoints require authentication. Users can only access, modify, and delete 
 """
 
 from typing import Any
+
 from django.db.models import QuerySet
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -14,9 +15,9 @@ from rest_framework.views import APIView
 
 from apps.alerts.models import Alert, AlertHistory
 from apps.alerts.serializers import (
-    AlertSerializer,
-    AlertListSerializer,
     AlertHistorySerializer,
+    AlertListSerializer,
+    AlertSerializer,
 )
 
 

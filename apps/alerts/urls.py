@@ -1,12 +1,13 @@
 """Alert URL routing."""
 
 from django.urls import path
+
 from apps.alerts.views import (
-    AlertListCreateView,
     AlertDetailView,
+    AlertHistoryListView,
+    AlertListCreateView,
     AlertPauseView,
     AlertResumeView,
-    AlertHistoryListView,
 )
 
 app_name = "alerts"

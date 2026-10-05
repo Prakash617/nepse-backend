@@ -273,6 +273,7 @@ def get_current_market_status(client: Any = None) -> dict[str, Any]:
     (Sun-Thu, 11:00 AM - 3:00 PM Asia/Kathmandu) if upstream is unreachable or in tests.
     """
     import zoneinfo
+
     from django.core.cache import cache
     from django.db.models import Max
     from django.utils import timezone

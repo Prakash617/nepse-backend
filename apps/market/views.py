@@ -9,15 +9,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.market.models import MarketSnapshot
-from apps.market.serializers import MarketStatusSerializer, MarketSummarySerializer
+from apps.market.serializers import MarketSummarySerializer
 from apps.market.services import get_current_market_status
 from apps.prices.models import DailyPrice
 
 
 def _get_latest_trading_date() -> date | None:
     """Get the latest available trading date from stored data."""
-    result = DailyPrice.objects.aggregate(latest=Max("trading_date"))
-    return result["latest"]
+    dp_date = DailyPrice.objects.aggregate(latest=Max("trading_date"))["latest"]
+    if dp_date is not None:
+        return dp_date
+    snap_date = MarketSnapshot.objects.aggregate(latest=Max("trading_date"))["latest"]
+    return snap_date
 
 
 class MarketSummaryView(APIView):
@@ -33,9 +36,19 @@ class MarketSummaryView(APIView):
         if cached is not None:
             return Response(cached)
 
-        try:
-            snapshot = MarketSnapshot.objects.get(trading_date=latest_date)
-        except MarketSnapshot.DoesNotExist:
+        snapshot = MarketSnapshot.objects.filter(trading_date=latest_date).first()
+        if snapshot is None:
+            # Fall back to latest available snapshot if today's snapshot is still syncing
+            snapshot = (
+                MarketSnapshot.objects.filter(trading_date__lte=latest_date)
+                .order_by("-trading_date")
+                .first()
+            )
+
+        if snapshot is None:
+            snapshot = MarketSnapshot.objects.order_by("-trading_date").first()
+
+        if snapshot is None:
             return Response({"detail": "No market snapshot available."}, status=200)
 
         serializer = MarketSummarySerializer(snapshot)

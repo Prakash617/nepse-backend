@@ -1,6 +1,7 @@
 """Tests for Web Push subscriptions and notification delivery."""
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
@@ -72,13 +73,13 @@ class TestPushSubscriptionModel:
             )
 
     def test_multiple_devices_for_same_user(self, user):
-        s1 = PushSubscription.objects.create(
+        PushSubscription.objects.create(
             user=user,
             endpoint="https://fcm.googleapis.com/fcm/send/device1",
             p256dh="key1",
             auth="auth1",
         )
-        s2 = PushSubscription.objects.create(
+        PushSubscription.objects.create(
             user=user,
             endpoint="https://fcm.googleapis.com/fcm/send/device2",
             p256dh="key2",
