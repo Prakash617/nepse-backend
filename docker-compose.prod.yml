@@ -1,0 +1,140 @@
+name: nepse-platform-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nepse_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nepse_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-nepse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nepse_secure_pass_2026}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nepse} -d ${POSTGRES_DB:-nepse_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nepse_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: nepse_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nepse_net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nepse_backend
+    restart: unless-stopped
+    command: ["web"]
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-nepse_platform}
+      - POSTGRES_USER=${POSTGRES_USER:-nepse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-nepse_secure_pass_2026}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/mediafiles
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nepse_net
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nepse_celery_worker
+    restart: unless-stopped
+    command: ["python", "-m", "celery", "-A", "config", "worker", "-l", "info"]
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-nepse_platform}
+      - POSTGRES_USER=${POSTGRES_USER:-nepse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-nepse_secure_pass_2026}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nepse_net
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nepse_celery_beat
+    restart: unless-stopped
+    command: ["python", "-m", "celery", "-A", "config", "beat", "-l", "info"]
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-nepse_platform}
+      - POSTGRES_USER=${POSTGRES_USER:-nepse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-nepse_secure_pass_2026}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nepse_net
+
+  nginx:
+    image: nginx:alpine
+    container_name: nepse_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/mediafiles:ro
+    depends_on:
+      - backend
+    networks:
+      - nepse_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+
+networks:
+  nepse_net:
+    driver: bridge
