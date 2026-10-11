@@ -17,7 +17,24 @@ SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
 
 # Production hosts and CSRF origins from env
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if os.environ.get("DJANGO_ALLOWED_HOSTS") else ["*"]
-CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if os.environ.get("CSRF_TRUSTED_ORIGINS") else []
+CSRF_TRUSTED_ORIGINS = (
+    os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if os.environ.get("CSRF_TRUSTED_ORIGINS")
+    else [
+        "https://nepse-alert.vercel.app",
+        "http://132.226.211.176",
+        "http://localhost:3000",
+    ]
+)
+CORS_ALLOWED_ORIGINS = (
+    os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if os.environ.get("CORS_ALLOWED_ORIGINS")
+    else [
+        "https://nepse-alert.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+)
 
 # Production database — require explicit env vars
 DATABASES["default"]["NAME"] = os.environ.get("POSTGRES_DB", "nepse_platform")  # noqa: F405
