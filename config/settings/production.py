@@ -26,15 +26,18 @@ CSRF_TRUSTED_ORIGINS = (
         "http://localhost:3000",
     ]
 )
+CORS_ALLOW_ALL_ORIGINS = os.environ.get("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
 CORS_ALLOWED_ORIGINS = (
-    os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    [origin.strip() for origin in os.environ.get("CORS_ALLOWED_ORIGINS").split(",") if origin.strip()]
     if os.environ.get("CORS_ALLOWED_ORIGINS")
     else [
         "https://nepse-alert.vercel.app",
+        "https://nepse-alert-lime.vercel.app",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
 )
+CORS_ALLOW_CREDENTIALS = True
 
 # Production database — require explicit env vars
 DATABASES["default"]["NAME"] = os.environ.get("POSTGRES_DB", "nepse_platform")  # noqa: F405
