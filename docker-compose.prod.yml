@@ -114,6 +114,30 @@ services:
     networks:
       - nepse_net
 
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nepse_telegram_bot
+    restart: unless-stopped
+    command: ["python", "manage.py", "run_telegram_bot"]
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-nepse_platform}
+      - POSTGRES_USER=${POSTGRES_USER:-nepse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-nepse_secure_pass_2026}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nepse_net
+
   nginx:
     image: nginx:alpine
     container_name: nepse_nginx
