@@ -226,29 +226,14 @@ NEPSE_TIMEOUT = int(os.environ.get("NEPSE_TIMEOUT", "30"))
 NEPSE_MAX_RETRIES = int(os.environ.get("NEPSE_MAX_RETRIES", "3"))
 NEPSE_BACKOFF_FACTOR = float(os.environ.get("NEPSE_BACKOFF_FACTOR", "1.0"))
 
-# Web Push (VAPID)
-VAPID_PUBLIC_KEY = os.environ.get(
-    "VAPID_PUBLIC_KEY",
-    "BNIPVKVp5gEyHkwpZZjDhGb84zlDuJjGu2YulvS74E2SuO15eifJXx2-nBcDJLU7ulWBShoZ_ZlOuGGdYbIw1Cs",
-)
-VAPID_PRIVATE_KEY = os.environ.get(
-    "VAPID_PRIVATE_KEY",
-    "q5gl-g5G4mSbnRKK4Kbj6-3BQEjS9dFpApK9K4sI0kk",
-)
-VAPID_ADMIN_EMAIL = os.environ.get(
-    "VAPID_ADMIN_EMAIL",
-    "mailto:admin@nepse.local",
-)
+# Web Push (VAPID) — must be provided via environment
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_ADMIN_EMAIL = os.environ.get("VAPID_ADMIN_EMAIL", "mailto:admin@nepse.local")
 
-# Telegram Bot
-TELEGRAM_BOT_TOKEN = os.environ.get(
-    "TELEGRAM_BOT_TOKEN",
-    "8274788886:AAGHiSL0i4nuYM_AYjraWI31ltlcu_frKHk",
-)
-TELEGRAM_BOT_USERNAME = os.environ.get(
-    "TELEGRAM_BOT_USERNAME",
-    "stock_napal_bot",
-)
+# Telegram Bot — must be provided via environment
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "stock_napal_bot")
 
 # Logging
 LOGGING = {
