@@ -126,3 +126,73 @@ class TestGetLtpMonthly:
         with pytest.raises(YonepseClientError, match="Request failed"):
             client.get_ltp_monthly("2012-01")
         client.close()
+
+
+class TestGetIndexMonthly:
+    @patch("integrations.yonepse.client.httpx.Client")
+    def test_success(self, mock_http_cls: MagicMock) -> None:
+        mock_client = MagicMock()
+        mock_http_cls.return_value = mock_client
+        mock_client.get.return_value = _mock_response({
+            "dates": ["2026-09-01"],
+            "columns": ["dateIndex", "close", "open", "high", "low"],
+            "series": {"NEPSE": [[0, 2558.35, 2550.0, 2560.0, 2545.0]]},
+        })
+
+        client = YonepseClient()
+        result = client.get_index_monthly("2026-09")
+        assert "NEPSE" in result["series"]
+        client.close()
+
+    @patch("integrations.yonepse.client.httpx.Client")
+    def test_unexpected_type(self, mock_http_cls: MagicMock) -> None:
+        mock_client = MagicMock()
+        mock_http_cls.return_value = mock_client
+        mock_client.get.return_value = _mock_response(["not", "a", "dict"])
+
+        client = YonepseClient()
+        with pytest.raises(YonepseClientError, match="Expected dict"):
+            client.get_index_monthly("2026-09")
+        client.close()
+
+    @patch("integrations.yonepse.client.httpx.Client")
+    def test_manifest(self, mock_http_cls: MagicMock) -> None:
+        mock_client = MagicMock()
+        mock_http_cls.return_value = mock_client
+        mock_client.get.return_value = _mock_response({
+            "availableMonths": ["1997-07", "2026-09"],
+            "latestDate": "2026-10-09",
+        })
+
+        client = YonepseClient()
+        result = client.get_index_manifest()
+        assert result["availableMonths"][0] == "1997-07"
+        client.close()
+
+
+class TestGetDividendHistory:
+    @patch("integrations.yonepse.client.httpx.Client")
+    def test_success(self, mock_http_cls: MagicMock) -> None:
+        mock_client = MagicMock()
+        mock_http_cls.return_value = mock_client
+        mock_client.get.return_value = _mock_response({
+            "symbols": ["NABIL"],
+            "columns": ["symbol", "bonus", "cash", "announce", "fiscalYear"],
+            "records": [[0, "5.00", "15.00", "2026-10-09", "2082/2083"]],
+        })
+
+        client = YonepseClient()
+        result = client.get_dividend_history()
+        assert result["symbols"] == ["NABIL"]
+        client.close()
+
+    @patch("integrations.yonepse.client.httpx.Client")
+    def test_unexpected_type(self, mock_http_cls: MagicMock) -> None:
+        mock_client = MagicMock()
+        mock_http_cls.return_value = mock_client
+        mock_client.get.return_value = _mock_response([1, 2, 3])
+
+        client = YonepseClient()
+        with pytest.raises(YonepseClientError, match="Expected dict"):
+            client.get_dividend_history()
+        client.close()

@@ -1,28 +1,29 @@
-"""Authentication middleware for WebSocket connections."""
+import logging
+from importlib import import_module
 
-from urllib.parse import parse_qs
-
+from django.conf import settings
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
-from django.contrib.sessions.models import Session
-from django.utils import timezone
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 @database_sync_to_async
 def get_user_from_session_key(session_key: str):
-    """Retrieve the user associated with a Django session key."""
+    """Retrieve the user associated with a Django session key using the configured SESSION_ENGINE."""
     try:
-        session = Session.objects.get(session_key=session_key, expire_date__gt=timezone.now())
-        session_data = session.get_decoded()
+        engine = import_module(settings.SESSION_ENGINE)
+        SessionStore = engine.SessionStore
+        session = SessionStore(session_key=session_key)
+        session_data = session.load()
         user_id = session_data.get("_auth_user_id")
         if user_id:
             return User.objects.get(pk=user_id)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to resolve user from session key %s: %s", session_key, e)
     return AnonymousUser()
 
 

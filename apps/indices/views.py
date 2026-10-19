@@ -49,3 +49,16 @@ class IndexHistoryView(generics.ListAPIView):
 
         qs = qs.order_by("trading_date")
         return qs
+
+
+from rest_framework.response import Response
+
+
+class IndexIntradayView(generics.GenericAPIView):
+    """Return intraday quote, session tick curve, and market breadth for an index."""
+
+    def get(self, request, nepse_id: int | None = None) -> Response:
+        target_id = nepse_id or int(request.query_params.get("nepse_id", 58))
+        from apps.indices.services import get_index_intraday_data
+        data = get_index_intraday_data(target_id)
+        return Response(data)

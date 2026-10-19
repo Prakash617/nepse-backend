@@ -270,7 +270,7 @@ def get_current_market_status(client: Any = None) -> dict[str, Any]:
     """Determine current NEPSE market status (live or closed).
 
     Tries upstream NEPSE client first; falls back to NEPSE market trading hours
-    (Sun-Thu, 11:00 AM - 3:00 PM Asia/Kathmandu) if upstream is unreachable or in tests.
+    (Mon-Fri, 11:15 AM - 3:00 PM Asia/Kathmandu, pre-open 11:00 AM - 11:15 AM) if upstream is unreachable or in tests.
     """
     import zoneinfo
 
@@ -296,7 +296,7 @@ def get_current_market_status(client: Any = None) -> dict[str, Any]:
             "source": "simulation",
             "message": "Market is LIVE (Simulated)" if is_open else "Market is CLOSED (Simulated)",
             "detail": "Simulation — Continuous Trading Active" if is_open else "Simulation — Market is closed",
-            "trading_hours": "Sunday - Thursday, 11:00 AM - 3:00 PM NPT",
+            "trading_hours": "Monday - Friday, 11:15 AM - 3:00 PM NPT (Pre-open: 11:00 AM - 11:15 AM)",
         }
 
     upstream_status = None
@@ -315,7 +315,7 @@ def get_current_market_status(client: Any = None) -> dict[str, Any]:
             upstream_status = None
 
     weekday = now_npt.weekday()  # Monday=0 ... Sunday=6
-    is_trading_day = weekday in (6, 0, 1, 2, 3)
+    is_trading_day = weekday in (0, 1, 2, 3, 4)
     minutes_from_midnight = now_npt.hour * 60 + now_npt.minute
 
     if upstream_status is not None and "is_open" in upstream_status:
@@ -327,7 +327,9 @@ def get_current_market_status(client: Any = None) -> dict[str, Any]:
             if not is_trading_day:
                 detail = "Weekend — Market is closed"
             elif minutes_from_midnight < (11 * 60):
-                detail = "Closed — Opens at 11:00 AM NPT"
+                detail = "Closed — Pre-Open starts at 11:00 AM NPT"
+            elif (11 * 60) <= minutes_from_midnight < (11 * 60 + 15):
+                detail = "Pre-Open Session (11:00 AM – 11:15 AM NPT)"
             elif minutes_from_midnight >= (15 * 60):
                 detail = "Closed for today — Closed at 3:00 PM NPT"
             else:
@@ -338,13 +340,13 @@ def get_current_market_status(client: Any = None) -> dict[str, Any]:
         if not is_trading_day:
             is_open = False
             detail = "Weekend — Market is closed"
-        elif minutes_from_midnight < (10 * 60 + 30):
+        elif minutes_from_midnight < (11 * 60):
             is_open = False
-            detail = "Closed — Opens today at 11:00 AM NPT"
-        elif (10 * 60 + 30) <= minutes_from_midnight < (11 * 60):
+            detail = "Closed — Pre-Open starts at 11:00 AM NPT"
+        elif (11 * 60) <= minutes_from_midnight < (11 * 60 + 15):
             is_open = False
-            detail = "Pre-Open Session (10:30 AM – 11:00 AM NPT)"
-        elif (11 * 60) <= minutes_from_midnight < (15 * 60):
+            detail = "Pre-Open Session (11:00 AM – 11:15 AM NPT)"
+        elif (11 * 60 + 15) <= minutes_from_midnight < (15 * 60):
             is_open = True
             detail = "Continuous Trading Live — Closes at 3:00 PM NPT"
         else:
@@ -362,6 +364,6 @@ def get_current_market_status(client: Any = None) -> dict[str, Any]:
         "source": source,
         "message": "Market is LIVE" if is_open else "Market is CLOSED",
         "detail": detail,
-        "trading_hours": "Sunday - Thursday, 11:00 AM - 3:00 PM NPT",
+        "trading_hours": "Monday - Friday, 11:15 AM - 3:00 PM NPT (Pre-open: 11:00 AM - 11:15 AM)",
     }
 

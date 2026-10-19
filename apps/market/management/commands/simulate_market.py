@@ -102,6 +102,18 @@ class Command(BaseCommand):
             default="",
             help="Comma-separated symbols to simulate (defaults to top stocks + user watchlists).",
         )
+        parser.add_argument(
+            "--target-price",
+            type=float,
+            default=None,
+            help="Simulate ticks progressively moving price towards this target price (e.g. 600.0).",
+        )
+        parser.add_argument(
+            "--target-symbol",
+            type=str,
+            default="",
+            help="Symbol to drive towards --target-price (defaults to first symbol, e.g. NABIL).",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         # 1. Market Status commands
@@ -125,6 +137,13 @@ class Command(BaseCommand):
 
         # 2. Setup Symbols
         symbols = self._get_target_symbols(options.get("symbols", ""))
+        target_price = options.get("target_price")
+        target_symbol = options.get("target_symbol", "").strip().upper()
+        if target_price is not None:
+            if not target_symbol:
+                target_symbol = symbols[0] if symbols else "NABIL"
+            if target_symbol not in symbols:
+                symbols.insert(0, target_symbol)
 
         # 3. Seed demo alerts if requested
         if options["demo_alerts"]:
@@ -143,7 +162,7 @@ class Command(BaseCommand):
         ticks = options["ticks"]
 
         # If user only specified a flag like --demo-alerts or --seed-intraday without loop or explicit tick count override
-        if not is_loop and not options["open_market"] and (options["demo_alerts"] or options["trigger_alert"] or options["seed_intraday"]):
+        if not is_loop and target_price is None and not options["open_market"] and (options["demo_alerts"] or options["trigger_alert"] or options["seed_intraday"]):
             self.stdout.write(self.style.SUCCESS("✓ Setup tasks completed. Run with `--loop` or `--ticks N` to simulate live trading ticks."))
             return
 
@@ -155,15 +174,20 @@ class Command(BaseCommand):
         volatility = options["volatility"]
 
         self.stdout.write(self.style.NOTICE(f"Starting simulation on {len(symbols)} stocks: {', '.join(symbols)}"))
-        self.stdout.write(self.style.NOTICE(f"Interval: {interval}s | Volatility: {volatility * 100:.2f}% | Mode: {'Infinite Loop' if is_loop else f'{ticks} ticks'}"))
+        mode_str = "Infinite Loop" if is_loop else (f"Target {target_symbol} -> Rs. {target_price}" if target_price is not None else f"{ticks} ticks")
+        self.stdout.write(self.style.NOTICE(f"Interval: {interval}s | Volatility: {volatility * 100:.2f}% | Mode: {mode_str}"))
         self.stdout.write("-" * 75)
 
         tick_count = 0
+        hit_target = False
         try:
-            while is_loop or tick_count < ticks:
+            while is_loop or (not hit_target if target_price is not None else tick_count < ticks):
                 tick_count += 1
-                self._execute_tick(symbols, tick_count, volatility)
-                if is_loop or tick_count < ticks:
+                hit_target = self._execute_tick(symbols, tick_count, volatility, target_symbol, target_price)
+                if target_price is not None and hit_target and not is_loop:
+                    self.stdout.write(self.style.SUCCESS(f"\n🎯 TARGET REACHED! {target_symbol} has reached Rs. {target_price:.2f}!"))
+                    break
+                if is_loop or (not hit_target if target_price is not None else tick_count < ticks):
                     time.sleep(interval)
         except KeyboardInterrupt:
             self.stdout.write(self.style.WARNING("\n\n⏹ Simulation paused by user."))
@@ -357,12 +381,20 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"✓ Created {created_intraday} intraday tick records for charts."))
 
-    def _execute_tick(self, symbols: list[str], tick_number: int, volatility: float) -> None:
-        """Simulate one live trading tick across target securities."""
+    def _execute_tick(
+        self,
+        symbols: list[str],
+        tick_number: int,
+        volatility: float,
+        target_symbol: str = "",
+        target_price: float | None = None,
+    ) -> bool:
+        """Simulate one live trading tick across target securities. Returns True if target hit."""
         today = timezone.localdate()
         now = timezone.now()
         tick_summary: list[str] = []
         triggered_alerts_total = 0
+        target_hit = False
 
         with transaction.atomic():
             for sym in symbols:
@@ -392,9 +424,27 @@ class Command(BaseCommand):
                 prev_close = float(dp.previous_close or dp.open or dp.ltp or 100.0)
                 current_ltp = float(dp.ltp or prev_close)
 
-                # Simulated price delta: random walk with slight upward or downward drift
-                delta_pct = (random.random() * 2 - 0.98) * volatility
-                new_ltp_float = max(1.0, round(current_ltp * (1 + delta_pct), 2))
+                if target_price is not None and target_symbol and sym == target_symbol:
+                    if abs(current_ltp - target_price) < 0.01:
+                        new_ltp_float = float(target_price)
+                        target_hit = True
+                    elif current_ltp < target_price:
+                        step = max(2.0, (target_price - current_ltp) * random.uniform(0.20, 0.40))
+                        new_ltp_float = round(min(target_price, current_ltp + step), 2)
+                        if new_ltp_float >= target_price:
+                            new_ltp_float = float(target_price)
+                            target_hit = True
+                    else:
+                        step = max(2.0, (current_ltp - target_price) * random.uniform(0.20, 0.40))
+                        new_ltp_float = round(max(target_price, current_ltp - step), 2)
+                        if new_ltp_float <= target_price:
+                            new_ltp_float = float(target_price)
+                            target_hit = True
+                else:
+                    # Simulated price delta: random walk with slight upward or downward drift
+                    delta_pct = (random.random() * 2 - 0.98) * volatility
+                    new_ltp_float = max(1.0, round(current_ltp * (1 + delta_pct), 2))
+
                 new_ltp = Decimal(str(new_ltp_float))
 
                 tick_vol = random.randint(50, 1200)
@@ -466,3 +516,4 @@ class Command(BaseCommand):
         # Print live ticker line
         alerts_info = f" | {self.style.WARNING(f'⚡ Alerts Fired: {triggered_alerts_total}')}" if triggered_alerts_total else ""
         self.stdout.write(f"[{now.strftime('%H:%M:%S')} Tick #{tick_number:02d}] " + " | ".join(tick_summary[:4]) + alerts_info)
+        return target_hit

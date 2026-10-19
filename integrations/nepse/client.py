@@ -463,6 +463,23 @@ class NepseClient:
         data = self._post(path, payload_type="sector-live")
         return data if isinstance(data, list) else []
 
+    def get_security_daily_trade_stat(self, index_id: int = 58) -> list[dict[str, Any]]:
+        """Get daily trade statistics for securities under a specific index.
+
+        Args:
+            index_id: Index ID (valid range: 51-67). Default 58 (NEPSE Index).
+
+        Returns:
+            List of security trade stats.
+        """
+        if not (INDEX_ID_MIN <= index_id <= INDEX_ID_MAX):
+            raise ValueError(
+                f"Index ID {index_id} is not valid. Must be between {INDEX_ID_MIN} and {INDEX_ID_MAX}."
+            )
+        path = f"{ENDPOINTS['security_daily_trade_stat_api']['api']}/{index_id}"
+        data = self._get(path)
+        return data if isinstance(data, list) else []
+
     # ------------------------------------------------------------------
     # Public API methods — Sectors
     # ------------------------------------------------------------------

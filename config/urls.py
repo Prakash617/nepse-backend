@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/v1/watchlists/", include("apps.watchlist.urls")),
     path("api/v1/alerts/", include("apps.alerts.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
+    path("api/v1/system/", include("apps.market.system_urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),

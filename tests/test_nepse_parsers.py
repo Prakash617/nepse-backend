@@ -67,6 +67,17 @@ class TestParseMarketSummary:
         assert result["total_traded_volume"] == 0
         assert result["close"] == 0
 
+    def test_parse_summary_list_format(self) -> None:
+        data = [
+            {"detail": "Total Turnover Rs:", "value": 4880089108.16},
+            {"detail": "Total Traded Shares", "value": 13376489.0},
+            {"detail": "Total Transactions", "value": 39295.0},
+        ]
+        result = parse_market_summary(data)
+        assert result["total_traded_value"] == 4880089108.16
+        assert result["total_traded_volume"] == 13376489.0
+        assert result["transactions"] == 39295.0
+
 
 class TestParseSecuritiesList:
     def test_parse_securities(self) -> None:
@@ -141,6 +152,26 @@ class TestParseIndices:
         assert len(result) == 2
         assert result[0]["name"] == "NEPSE Index"
         assert result[0]["id"] == 58
+
+    def test_parse_indices_upstream_format(self) -> None:
+        data = [{
+            "id": 58,
+            "index": "NEPSE Index",
+            "currentValue": 2634.17,
+            "change": 8.23,
+            "perChange": 0.31,
+            "high": 2638.42,
+            "low": 2622.78,
+            "close": 2625.93,
+            "previousClose": 2634.17,
+        }]
+        result = parse_indices(data)
+        assert len(result) == 1
+        assert result[0]["id"] == 58
+        assert result[0]["name"] == "NEPSE Index"
+        assert result[0]["index_value"] == 2634.17
+        assert result[0]["change"] == 8.23
+        assert result[0]["change_percent"] == 0.31
 
 
 class TestParseSectorIndices:

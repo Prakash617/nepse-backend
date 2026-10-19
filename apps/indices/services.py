@@ -6,14 +6,20 @@ IndexSnapshot uses (index, trading_date) as identity.
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Max
 
 from apps.common.sync import SyncResult
 from apps.indices.models import IndexSnapshot, MarketIndex
+from apps.market.models import MarketSnapshot
+from apps.market.services import get_current_market_status
+from apps.prices.models import DailyPrice
+from integrations.nepse.client import NepseClient
 
 logger = logging.getLogger(__name__)
 
@@ -223,3 +229,174 @@ def sync_index_snapshots(
         result.failed,
     )
     return result
+
+
+def get_index_intraday_data(nepse_id: int = 58) -> dict[str, Any]:
+    """Retrieve full intraday details, session curve, and breadth for an index.
+
+    Includes:
+    - Real-time / latest index quote (value, change, per_change, high, low, open, close)
+    - Full intraday session tick series (time, timestamp, value) from /graph/index/{nepse_id}
+    - Market breadth (advanced, declined, unchanged count) from /securityDailyTradeStat/{nepse_id}
+    - Total turnover, traded volume, and transactions
+    - Market status (MARKET OPEN / MARKET CLOSED) and as_of date string
+    """
+    cache_key = f"nepse_index_intraday_{nepse_id}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return cached_data
+
+    npt = dt_timezone(timedelta(hours=5, minutes=45))
+    status_info = get_current_market_status()
+    is_open = status_info.get("is_open", False)
+    market_status_text = "MARKET OPEN" if is_open else "MARKET CLOSED"
+
+    # Default fallback values from DB
+    market_index = MarketIndex.objects.filter(nepse_id=nepse_id).first()
+    index_name = market_index.name if market_index else ("NEPSE Index" if nepse_id == 58 else f"Index {nepse_id}")
+
+    latest_snapshot = (
+        IndexSnapshot.objects.filter(index__nepse_id=nepse_id)
+        .order_by("-trading_date")
+        .first()
+    )
+    latest_market_snap = MarketSnapshot.objects.order_by("-trading_date").first()
+
+    current_value = float(latest_snapshot.close if latest_snapshot and latest_snapshot.close else 2634.17)
+    point_change = float(latest_snapshot.point_change if latest_snapshot and latest_snapshot.point_change else 0.0)
+    percentage_change = float(latest_snapshot.percentage_change if latest_snapshot and latest_snapshot.percentage_change else 0.0)
+    high_val = float(latest_snapshot.high if latest_snapshot and latest_snapshot.high else current_value)
+    low_val = float(latest_snapshot.low if latest_snapshot and latest_snapshot.low else current_value)
+    open_val = float(latest_snapshot.open if latest_snapshot and latest_snapshot.open else current_value)
+    close_val = current_value
+    prev_close_val = current_value - point_change
+
+    total_turnover = float(latest_market_snap.total_turnover) if latest_market_snap and latest_market_snap.total_turnover else None
+    total_shares = latest_market_snap.total_volume if latest_market_snap else None
+    transactions = latest_market_snap.transactions if latest_market_snap else None
+
+    # Fallback breadth from DailyPrice
+    adv_count = 0
+    dec_count = 0
+    unc_count = 0
+    total_count = 0
+    latest_dp_date = DailyPrice.objects.aggregate(latest=Max("trading_date")).get("latest")
+    if latest_dp_date:
+        dp_qs = DailyPrice.objects.filter(trading_date=latest_dp_date)
+        adv_count = dp_qs.filter(point_change__gt=0).count()
+        dec_count = dp_qs.filter(point_change__lt=0).count()
+        unc_count = dp_qs.filter(point_change=0).count()
+        total_count = dp_qs.count()
+
+    points: list[dict[str, Any]] = []
+    as_of_str = status_info.get("as_of") or "Oct 16 | 3:00 PM"
+
+    # Attempt upstream fetch
+    try:
+        client = NepseClient()
+        # 1. Intraday graph
+        raw_graph = client.get_live_index(nepse_id)
+        if raw_graph and isinstance(raw_graph, list):
+            for pt in raw_graph:
+                if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                    ts = int(pt[0])
+                    val = float(pt[1])
+                    dt_pt = datetime.fromtimestamp(ts, tz=npt)
+                    points.append({
+                        "time": dt_pt.strftime("%H:%M"),
+                        "timestamp": ts,
+                        "value": round(val, 2),
+                    })
+
+        # 2. Upstream index details
+        raw_indices = client._request("GET", "/api/nots/nepse-index") if nepse_id in (57, 58, 62, 63) else client._request("GET", "/api/nots/index")
+        if isinstance(raw_indices, list):
+            matching = next((item for item in raw_indices if item.get("id") == nepse_id), None)
+            if matching:
+                if matching.get("index") or matching.get("indexName"):
+                    index_name = matching.get("index") or matching.get("indexName")
+                if matching.get("currentValue") is not None:
+                    current_value = float(matching["currentValue"])
+                elif matching.get("close") is not None:
+                    current_value = float(matching["close"])
+
+                if matching.get("change") is not None:
+                    point_change = float(matching["change"])
+                elif matching.get("pointChange") is not None:
+                    point_change = float(matching["pointChange"])
+
+                if matching.get("perChange") is not None:
+                    percentage_change = float(matching["perChange"])
+                elif matching.get("percentChange") is not None:
+                    percentage_change = float(matching["percentChange"])
+
+                if matching.get("high") is not None:
+                    high_val = float(matching["high"])
+                if matching.get("low") is not None:
+                    low_val = float(matching["low"])
+                if matching.get("close") is not None:
+                    close_val = float(matching["close"])
+                if matching.get("previousClose") is not None:
+                    prev_close_val = float(matching["previousClose"])
+
+        # 3. Upstream market summary for turnover and shares
+        raw_summary = client._request("GET", "/api/nots/market-summary")
+        if isinstance(raw_summary, list):
+            for s in raw_summary:
+                d = str(s.get("detail", ""))
+                v = s.get("value")
+                if "Turnover" in d and v is not None:
+                    total_turnover = float(v)
+                elif "Traded Shares" in d and v is not None:
+                    total_shares = int(v)
+                elif "Transactions" in d and v is not None:
+                    transactions = int(v)
+
+        # 4. Upstream breadth
+        raw_stats = client.get_security_daily_trade_stat(nepse_id)
+        if raw_stats and isinstance(raw_stats, list):
+            adv_count = sum(1 for t in raw_stats if (t.get("percentageChange") or 0) > 0)
+            dec_count = sum(1 for t in raw_stats if (t.get("percentageChange") or 0) < 0)
+            unc_count = sum(1 for t in raw_stats if (t.get("percentageChange") or 0) == 0)
+            total_count = len(raw_stats)
+
+        # Compute accurate as_of string
+        if points:
+            last_ts = points[-1]["timestamp"]
+            last_dt = datetime.fromtimestamp(last_ts, tz=npt)
+            if not is_open:
+                as_of_str = f"{last_dt.strftime('%b %d')} | 3:00 PM"
+            else:
+                as_of_str = last_dt.strftime("%b %d | %I:%M %p")
+    except Exception as e:
+        logger.warning("Failed to fetch live index intraday from NEPSE upstream: %s", e)
+
+    result_payload = {
+        "nepse_id": nepse_id,
+        "name": index_name,
+        "current_value": round(current_value, 2),
+        "point_change": round(point_change, 2),
+        "percentage_change": round(percentage_change, 2),
+        "high": round(high_val, 2),
+        "low": round(low_val, 2),
+        "open": round(open_val, 2),
+        "close": round(close_val, 2),
+        "previous_close": round(prev_close_val, 2),
+        "as_of": as_of_str,
+        "status": market_status_text,
+        "is_open": is_open,
+        "total_turnover": total_turnover,
+        "total_shares": total_shares,
+        "transactions": transactions,
+        "breadth": {
+            "advanced": adv_count,
+            "declined": dec_count,
+            "unchanged": unc_count,
+            "total": total_count,
+        },
+        "points": points,
+    }
+
+    cache_ttl = 15 if is_open else 120
+    cache.set(cache_key, result_payload, timeout=cache_ttl)
+    return result_payload

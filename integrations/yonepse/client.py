@@ -130,6 +130,31 @@ class YonepseClient:
             )
         return data
 
+    # -- index history --------------------------------------------------------
+
+    def get_index_manifest(self) -> dict[str, Any]:
+        """Return the index history manifest (available months, latest date)."""
+        data = self._get_json(endpoints.INDEX_MANIFEST)
+        if not isinstance(data, dict):
+            raise YonepseClientError(
+                f"Expected dict for index manifest, got {type(data).__name__}"
+            )
+        return data
+
+    def get_index_monthly(self, month: str) -> dict[str, Any]:
+        """Return index history for a specific month (YYYY-MM format).
+
+        Returns the monthly shard dict with columns, series (keyed by index
+        code, e.g. ``NEPSE``, ``BANKSUBIND``), dates, etc.
+        """
+        url = endpoints.INDEX_MONTHLY_TEMPLATE.format(month=month)
+        data = self._get_json(url)
+        if not isinstance(data, dict):
+            raise YonepseClientError(
+                f"Expected dict for index monthly {month}, got {type(data).__name__}"
+            )
+        return data
+
     # -- company / fundamentals -----------------------------------------------
 
     def get_company_profiles(self) -> list[dict[str, Any]]:
@@ -172,14 +197,22 @@ class YonepseClient:
 
     # -- dividends ------------------------------------------------------------
 
-    def get_proposed_dividends(self) -> list[dict[str, Any]]:
-        """Return proposed dividend data (latest year)."""
-        data = self._get_json(endpoints.PROPOSED_DIVIDEND_LATEST)
-        if not isinstance(data, list):
+    def get_dividend_history(self) -> dict[str, Any]:
+        """Return the full dividend/bonus history dataset.
+
+        Returns a dict with ``symbols`` (list of ticker strings), ``columns``
+        and ``records`` (list-of-lists keyed by column order).
+        """
+        data = self._get_json(endpoints.DIVIDEND_HISTORY)
+        if not isinstance(data, dict):
             raise YonepseClientError(
-                f"Expected list for proposed dividends, got {type(data).__name__}"
+                f"Expected dict for dividend history, got {type(data).__name__}"
             )
         return data
+
+    def get_proposed_dividends(self) -> dict[str, Any]:
+        """Return dividend/bonus data (latest history snapshot)."""
+        return self.get_dividend_history()
 
     def close(self) -> None:
         """Close the underlying HTTP client."""

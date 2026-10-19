@@ -95,7 +95,10 @@ def parse_sector_indices(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Parse YONEPSE sector_indices.json into the same format as NEPSE parse_sector_indices.
 
     YONEPSE schema: {id, indexCode, indexName, description, sectorMaster, ...}
-    Target schema:  {id, name, index_value, change, change_percent}
+    Target schema:  {id, name, index_value, change, change_percent, code}
+
+    ``code`` (indexCode) is retained because index-history shards are keyed by
+    index code rather than id.
     """
     results = []
     for item in data:
@@ -105,7 +108,70 @@ def parse_sector_indices(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "index_value": None,
             "change": None,
             "change_percent": None,
+            "code": _get_optional(item, "indexCode"),
         })
+    return results
+
+
+def parse_index_monthly(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Parse a YONEPSE index monthly shard into index-snapshot dicts.
+
+    YONEPSE monthly schema:
+    {
+        "month": "2026-09",
+        "dates": ["2026-09-01", ...],
+        "columns": ["dateIndex", "close", "open", "high", "low",
+                    "turnover", "volume", "trades"],
+        "series": {
+            "NEPSE": [[dateIndex, close, open, high, low, turnover, volume, trades], ...],
+            "BANKSUBIND": [...],
+            ...
+        }
+    }
+
+    Older shards may omit trailing columns (e.g. volume/trades); missing values
+    are returned as None.
+
+    Target schema per record:
+    {index_code, business_date, open, high, low, close, volume, turnover}
+    """
+    dates = data.get("dates", [])
+    columns = data.get("columns", [])
+    series = data.get("series", {})
+
+    # Map column name -> position so shard column-order changes are tolerated.
+    col_index: dict[str, int] = {
+        name: idx for idx, name in enumerate(columns) if isinstance(name, str)
+    }
+
+    def _value(row: list[Any], name: str) -> Any:
+        idx = col_index.get(name)
+        if idx is None or idx >= len(row):
+            return None
+        return row[idx]
+
+    results: list[dict[str, Any]] = []
+    for index_code, rows in series.items():
+        for row in rows:
+            if not isinstance(row, list):
+                continue
+            date_idx = _value(row, "dateIndex")
+            if date_idx is None:
+                date_idx = row[0] if row else None
+            if not isinstance(date_idx, int) or date_idx < 0 or date_idx >= len(dates):
+                continue
+            results.append({
+                "index_code": index_code,
+                "business_date": dates[date_idx],
+                "open": _value(row, "open"),
+                "high": _value(row, "high"),
+                "low": _value(row, "low"),
+                "close": _value(row, "close"),
+                "volume": _value(row, "volume"),
+                "turnover": _value(row, "turnover"),
+                "point_change": None,
+                "percentage_change": None,
+            })
     return results
 
 
@@ -227,6 +293,64 @@ def parse_ltp_daily(
                 "volume": row[2],
                 "turnover": row[3],
             })
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Dividends / bonus
+# ---------------------------------------------------------------------------
+
+
+def parse_dividends_history(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Parse YONEPSE dividend/history.json into corporate-action dicts.
+
+    YONEPSE schema:
+    {
+        "symbols": ["AADHYANTA", ...],
+        "columns": ["symbol", "bonus", "cash", "total", "announce",
+                    "bookclose", "fiscalYear"],
+        "records": [[<symbolIndex>, "<bonus>", "<cash>", "<total>",
+                     "<announce>", "<bookclose>", "<fiscalYear>"], ...]
+    }
+
+    The first record field is an index into ``symbols`` (not a NEPSE id).
+
+    Target schema per record:
+    {symbol, fiscal_year, bonus, cash, total, announcement_date, bookclose_date}
+    """
+    symbols = data.get("symbols", [])
+    columns = data.get("columns", [])
+    records = data.get("records", [])
+
+    col_index: dict[str, int] = {
+        name: idx for idx, name in enumerate(columns) if isinstance(name, str)
+    }
+
+    def _value(row: list[Any], name: str) -> Any:
+        idx = col_index.get(name)
+        if idx is None or idx >= len(row):
+            return None
+        return row[idx]
+
+    results: list[dict[str, Any]] = []
+    for row in records:
+        if not isinstance(row, list):
+            continue
+        symbol_idx = _value(row, "symbol")
+        if not isinstance(symbol_idx, int) or symbol_idx < 0 or symbol_idx >= len(symbols):
+            continue
+        symbol = symbols[symbol_idx]
+        if not symbol:
+            continue
+        results.append({
+            "symbol": str(symbol).upper(),
+            "fiscal_year": _value(row, "fiscalYear"),
+            "bonus": _value(row, "bonus"),
+            "cash": _value(row, "cash"),
+            "total": _value(row, "total"),
+            "announcement_date": _value(row, "announce"),
+            "bookclose_date": _value(row, "bookclose"),
+        })
     return results
 
 

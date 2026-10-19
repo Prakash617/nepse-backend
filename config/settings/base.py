@@ -203,19 +203,19 @@ CELERY_TIMEZONE = "Asia/Kathmandu"
 CELERY_BEAT_SCHEDULE = {
     "sync-daily-prices": {
         "task": "prices.sync_daily_prices",
-        "schedule": crontab(minute="*/5", hour="10-15", day_of_week="0-4"),
+        "schedule": crontab(minute="*/5", hour="11-15", day_of_week="1-5"),
     },
     "sync-intraday-prices": {
         "task": "prices.sync_intraday_prices",
-        "schedule": crontab(minute="*/5", hour="10-15", day_of_week="0-4"),
+        "schedule": crontab(minute="*/5", hour="11-15", day_of_week="1-5"),
     },
     "sync-market-snapshot": {
         "task": "market.sync_market_snapshot",
-        "schedule": crontab(minute="*/5", hour="10-15", day_of_week="0-4"),
+        "schedule": crontab(minute="*/5", hour="11-15", day_of_week="1-5"),
     },
     "evaluate-alerts": {
         "task": "apps.notifications.tasks.evaluate_alerts_task",
-        "schedule": crontab(minute="*/2", hour="10-15", day_of_week="0-4"),
+        "schedule": crontab(minute="*/2", hour="11-15", day_of_week="1-5"),
     },
 }
 

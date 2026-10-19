@@ -63,6 +63,7 @@ def register_view(request: Request) -> Response:
             "id": user.id,
             "username": user.username,
             "email": user.email,
+            "session_key": request.session.session_key,
         },
         status=status.HTTP_201_CREATED,
     )
@@ -89,6 +90,7 @@ def login_view(request: Request) -> Response:
             "id": user.id,
             "username": user.username,
             "email": user.email,
+            "session_key": request.session.session_key,
         }
     )
 
@@ -112,5 +114,6 @@ def me_view(request: Request) -> Response:
             "id": user.id,
             "username": user.username,
             "email": user.email,
+            "session_key": request.session.session_key,
         }
     )

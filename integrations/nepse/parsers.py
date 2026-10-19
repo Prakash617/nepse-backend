@@ -72,8 +72,32 @@ def parse_today_prices(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return results
 
 
-def parse_market_summary(data: dict[str, Any]) -> dict[str, Any]:
+def parse_market_summary(data: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any]:
     """Parse market summary from /api/nots/market-summary."""
+    if isinstance(data, list):
+        summary_map: dict[str, Any] = {}
+        for item in data:
+            if isinstance(item, dict):
+                detail = item.get("detail")
+                val = item.get("value")
+                if detail:
+                    summary_map[str(detail).strip()] = val
+        return {
+            "total_traded_volume": _get_optional(summary_map, "Total Traded Shares", 0),
+            "total_traded_value": _get_optional(summary_map, "Total Turnover Rs:", 0),
+            "transactions": _get_optional(summary_map, "Total Transactions", 0),
+            "total_scrips": _get_optional(summary_map, "Total Scrips Traded", 0),
+            "market_cap": _get_optional(summary_map, "Total Market Capitalization Rs:", 0),
+            "float_market_cap": _get_optional(summary_map, "Total Float Market Capitalization Rs:", 0),
+            "previous_close": 0,
+            "open": 0,
+            "high": 0,
+            "low": 0,
+            "close": 0,
+            "point_change": 0,
+            "percent_change": 0,
+        }
+
     return {
         "total_traded_volume": _get_optional(data, "totalTradedVolume", 0),
         "total_traded_value": _get_optional(data, "totalTradedValue", 0),
@@ -150,10 +174,14 @@ def parse_indices(data: dict[str, Any] | list[dict[str, Any]]) -> list[dict[str,
         results.append(
             {
                 "id": _get_optional(item, "id"),
-                "name": _get_optional(item, "indexName"),
-                "index_value": _get_optional(item, "close"),
-                "change": _get_optional(item, "pointChange"),
-                "change_percent": _get_optional(item, "percentChange"),
+                "name": _get_optional(item, "indexName") or _get_optional(item, "index"),
+                "index_value": _get_optional(item, "currentValue") or _get_optional(item, "close"),
+                "change": _get_optional(item, "change") or _get_optional(item, "pointChange"),
+                "change_percent": _get_optional(item, "perChange") or _get_optional(item, "percentChange") or _get_optional(item, "percentageChange"),
+                "high": _get_optional(item, "high"),
+                "low": _get_optional(item, "low"),
+                "close": _get_optional(item, "close"),
+                "previous_close": _get_optional(item, "previousClose"),
             }
         )
     return results
@@ -172,10 +200,14 @@ def parse_sector_indices(data: dict[str, Any] | list[dict[str, Any]]) -> list[di
         results.append(
             {
                 "id": _get_optional(item, "id"),
-                "name": _get_optional(item, "indexName"),
-                "index_value": _get_optional(item, "close"),
-                "change": _get_optional(item, "pointChange"),
-                "change_percent": _get_optional(item, "percentChange"),
+                "name": _get_optional(item, "indexName") or _get_optional(item, "index"),
+                "index_value": _get_optional(item, "currentValue") or _get_optional(item, "close"),
+                "change": _get_optional(item, "change") or _get_optional(item, "pointChange"),
+                "change_percent": _get_optional(item, "perChange") or _get_optional(item, "percentChange") or _get_optional(item, "percentageChange"),
+                "high": _get_optional(item, "high"),
+                "low": _get_optional(item, "low"),
+                "close": _get_optional(item, "close"),
+                "previous_close": _get_optional(item, "previousClose"),
             }
         )
     return results

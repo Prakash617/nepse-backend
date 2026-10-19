@@ -7,6 +7,8 @@ Verifies that YONEPSE data is normalized to the same format as NEPSE parsers.
 from integrations.yonepse.parsers import (
     parse_company_financials,
     parse_company_profiles,
+    parse_dividends_history,
+    parse_index_monthly,
     parse_indices,
     parse_ltp_daily,
     parse_ltp_monthly,
@@ -164,6 +166,80 @@ class TestParseLtpDaily:
         assert result[0]["symbol"] == "NABIL"
         assert result[0]["business_date"] == "2026-08-27T14:59:00"
         assert result[0]["ltp"] == 1000
+
+
+class TestParseIndexMonthly:
+    def test_basic_parse(self) -> None:
+        data = {
+            "dates": ["2026-09-01", "2026-09-02"],
+            "columns": [
+                "dateIndex", "close", "open", "high", "low",
+                "turnover", "volume", "trades",
+            ],
+            "series": {
+                "NEPSE": [
+                    [0, 2558.35, 2550.0, 2560.0, 2545.0, 1000.0, 500, 10],
+                    [1, 2560.0, 2558.0, 2565.0, 2550.0, 1100.0, 550, 12],
+                ],
+                "BANKSUBIND": [[0, 1416.0, 1422.0, 1422.5, 1407.0, 280.0, 988, 38]],
+            },
+        }
+        result = parse_index_monthly(data)
+        assert len(result) == 3
+        nepse_0 = [r for r in result if r["index_code"] == "NEPSE"][0]
+        assert nepse_0["business_date"] == "2026-09-01"
+        assert nepse_0["close"] == 2558.35
+        assert nepse_0["volume"] == 500
+        assert nepse_0["turnover"] == 1000.0
+
+    def test_missing_trailing_columns(self) -> None:
+        data = {
+            "dates": ["1997-07-20"],
+            "columns": ["dateIndex", "close", "open", "high", "low", "turnover"],
+            "series": {"NEPSE": [[0, 173.26, 173.26, 173.26, 173.26, 0]]},
+        }
+        result = parse_index_monthly(data)
+        assert len(result) == 1
+        assert result[0]["volume"] is None
+        assert result[0]["close"] == 173.26
+
+    def test_invalid_date_index(self) -> None:
+        data = {
+            "dates": ["2026-09-01"],
+            "columns": ["dateIndex", "close"],
+            "series": {"NEPSE": [[5, 100.0]]},
+        }
+        assert parse_index_monthly(data) == []
+
+
+class TestParseDividendsHistory:
+    def test_basic_parse(self) -> None:
+        data = {
+            "symbols": ["NABIL", "NIMB"],
+            "columns": [
+                "symbol", "bonus", "cash", "total",
+                "announce", "bookclose", "fiscalYear",
+            ],
+            "records": [
+                [0, "5.00", "15.00", "20.00", "2026-10-09", None, "2082/2083"],
+                [1, None, "8.25", "8.25", "2026-10-08", "2026-10-20", "2082/2083"],
+            ],
+        }
+        result = parse_dividends_history(data)
+        assert len(result) == 2
+        assert result[0]["symbol"] == "NABIL"
+        assert result[0]["cash"] == "15.00"
+        assert result[0]["bonus"] == "5.00"
+        assert result[0]["announcement_date"] == "2026-10-09"
+        assert result[1]["bookclose_date"] == "2026-10-20"
+
+    def test_invalid_symbol_index_skipped(self) -> None:
+        data = {
+            "symbols": ["NABIL"],
+            "columns": ["symbol", "bonus", "cash", "announce", "fiscalYear"],
+            "records": [[9, None, "5.00", "2026-10-09", "2082/2083"]],
+        }
+        assert parse_dividends_history(data) == []
 
 
 class TestParseCompanyProfiles:

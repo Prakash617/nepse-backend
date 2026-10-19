@@ -29,7 +29,45 @@ def _make_indices_data() -> list[dict]:
 def _make_sector_indices_data() -> list[dict]:
     return [
         {"id": 51, "indexCode": "BANKSUBIND", "indexName": "Banking SubIndex"},
+        {"id": 58, "indexCode": "NEPSE", "indexName": "NEPSE Index"},
     ]
+
+
+def _make_index_manifest() -> dict:
+    return {
+        "availableMonths": ["2026-07", "2026-08"],
+        "latestDate": "2026-08-27",
+    }
+
+
+def _make_index_monthly() -> dict:
+    return {
+        "dates": ["2026-07-01", "2026-07-02"],
+        "columns": [
+            "dateIndex", "close", "open", "high", "low",
+            "turnover", "volume", "trades",
+        ],
+        "series": {
+            "NEPSE": [
+                [0, 2558.35, 2550.0, 2560.0, 2545.0, 1000.0, 500, 10],
+                [1, 2560.0, 2558.0, 2565.0, 2550.0, 1100.0, 550, 12],
+            ],
+        },
+    }
+
+
+def _make_dividend_history() -> dict:
+    return {
+        "symbols": ["NABIL", "NIMB"],
+        "columns": [
+            "symbol", "bonus", "cash", "total",
+            "announce", "bookclose", "fiscalYear",
+        ],
+        "records": [
+            [0, "5.00", "15.00", "20.00", "2026-10-09", None, "2082/2083"],
+            [1, None, "8.25", "8.25", "2026-10-08", None, "2082/2083"],
+        ],
+    }
 
 
 def _make_market_history_data() -> list[dict]:
@@ -69,6 +107,9 @@ def _build_mock_client() -> MagicMock:
     client.get_market_history.return_value = _make_market_history_data()
     client.get_ltp_manifest.return_value = _make_ltp_manifest()
     client.get_ltp_monthly.return_value = _make_ltp_monthly()
+    client.get_index_manifest.return_value = _make_index_manifest()
+    client.get_index_monthly.return_value = _make_index_monthly()
+    client.get_dividend_history.return_value = _make_dividend_history()
     return client
 
 
@@ -171,6 +212,47 @@ class TestBootstrapDateRange:
 
 
 @pytest.mark.django_db
+class TestBootstrapIndexHistory:
+    @patch("integrations.yonepse.YonepseClient")
+    def test_index_history_bootstrap(self, mock_cls: MagicMock) -> None:
+        mock_cls.return_value = _build_mock_client()
+        out = StringIO()
+        call_command(
+            "bootstrap_yonepse_data", "--indices", "--index-history", stdout=out
+        )
+        from apps.indices.models import IndexSnapshot
+
+        assert IndexSnapshot.objects.count() == 2
+        snapshot = IndexSnapshot.objects.filter(
+            index__nepse_id=58, trading_date=date(2026, 7, 1)
+        ).first()
+        assert snapshot is not None
+        assert snapshot.close is not None
+
+
+@pytest.mark.django_db
+class TestBootstrapDividends:
+    @patch("integrations.yonepse.YonepseClient")
+    def test_dividends_bootstrap(self, mock_cls: MagicMock) -> None:
+        mock_cls.return_value = _build_mock_client()
+        from apps.securities.services import sync_securities
+        from integrations.yonepse.parsers import parse_securities_list
+
+        sync_securities(parse_securities_list(_make_securities_data()))
+
+        out = StringIO()
+        call_command("bootstrap_yonepse_data", "--dividends", stdout=out)
+
+        from apps.corporate_actions.models import BonusShare, Dividend
+
+        assert Dividend.objects.count() == 2
+        assert BonusShare.objects.count() == 1
+        nabil = Dividend.objects.get(security__symbol="NABIL")
+        assert str(nabil.dividend_per_share) == "15.00"
+        assert str(nabil.bonus_shares) == "5.00"
+
+
+@pytest.mark.django_db
 class TestBootstrapReport:
     @patch("integrations.yonepse.YonepseClient")
     def test_report_output(self, mock_cls: MagicMock) -> None:
@@ -181,3 +263,4 @@ class TestBootstrapReport:
         assert "YONEPSE Bootstrap Report" in output
         assert "Sectors" in output
         assert "Securities" in output
+        assert "Index Snapshots" in output
