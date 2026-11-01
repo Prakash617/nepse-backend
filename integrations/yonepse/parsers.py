@@ -232,17 +232,20 @@ def parse_ltp_monthly(
     results = []
     for symbol, rows in series.items():
         for row in rows:
-            if not isinstance(row, list) or len(row) < 4:
+            if not isinstance(row, list) or len(row) < 2:
                 continue
             date_idx = row[0]
             if not isinstance(date_idx, int) or date_idx < 0 or date_idx >= len(dates):
                 continue
+            ltp = row[1] if len(row) > 1 else None
+            volume = row[2] if len(row) > 2 else None
+            turnover = row[3] if len(row) > 3 else (ltp * volume if ltp and volume else None)
             results.append({
                 "symbol": symbol,
                 "business_date": dates[date_idx],
-                "ltp": row[1],
-                "volume": row[2],
-                "turnover": row[3],
+                "ltp": ltp,
+                "volume": volume,
+                "turnover": turnover,
                 "open": None,
                 "high": None,
                 "low": None,

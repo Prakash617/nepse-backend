@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     "apps.watchlist",
     "apps.alerts",
     "apps.notifications",
+    "apps.learning",
+    "apps.technical_analysis",
 ]
 
 MIDDLEWARE = [
@@ -149,6 +151,10 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Media files
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 # Default primary key
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -216,6 +222,10 @@ CELERY_BEAT_SCHEDULE = {
     "evaluate-alerts": {
         "task": "apps.notifications.tasks.evaluate_alerts_task",
         "schedule": crontab(minute="*/2", hour="11-15", day_of_week="1-5"),
+    },
+    "calculate-daily-technical-analysis": {
+        "task": "technical_analysis.calculate_daily",
+        "schedule": crontab(minute="30", hour="15", day_of_week="0-5"),
     },
 }
 

@@ -18,6 +18,12 @@ from apps.securities.models import Security
 
 logger = logging.getLogger(__name__)
 
+# Known historical ticker renames / mergers mapped to successor securities
+HISTORICAL_SYMBOL_MAP: dict[str, str] = {
+    "NIB": "NIMB",   # Nepal Investment Bank -> Nepal Investment Mega Bank
+    "PLIC": "HLI",   # Prime Life Insurance -> Himalayan Life Insurance
+}
+
 
 def _to_decimal(value: Any) -> Decimal | None:
     """Safely convert a value to Decimal. Returns None on failure."""
@@ -115,10 +121,12 @@ def sync_daily_prices(prices_data: list[dict[str, Any]]) -> SyncResult:
         trading_date = _to_date(data.get("business_date")) or today
 
         db_security_id = _resolve_security(security_id_raw, symbol, nepse_id_to_db)
-        if db_security_id is None:
-            # Try symbol lookup separately
-            if symbol and symbol.upper() in symbol_to_db:
-                db_security_id = symbol_to_db[symbol.upper()]
+        if db_security_id is None and symbol:
+            sym_upper = symbol.upper()
+            if sym_upper in symbol_to_db:
+                db_security_id = symbol_to_db[sym_upper]
+            elif sym_upper in HISTORICAL_SYMBOL_MAP:
+                db_security_id = symbol_to_db.get(HISTORICAL_SYMBOL_MAP[sym_upper])
 
         if db_security_id is None:
             result.skipped += 1
@@ -339,8 +347,12 @@ def sync_intraday_prices(prices_data: list[dict[str, Any]]) -> SyncResult:
             continue
 
         db_security_id = _resolve_security(security_id_raw, symbol, nepse_id_to_db)
-        if db_security_id is None and symbol and symbol.upper() in symbol_to_db:
-            db_security_id = symbol_to_db[symbol.upper()]
+        if db_security_id is None and symbol:
+            sym_upper = symbol.upper()
+            if sym_upper in symbol_to_db:
+                db_security_id = symbol_to_db[sym_upper]
+            elif sym_upper in HISTORICAL_SYMBOL_MAP:
+                db_security_id = symbol_to_db.get(HISTORICAL_SYMBOL_MAP[sym_upper])
 
         if db_security_id is None:
             result.skipped += 1

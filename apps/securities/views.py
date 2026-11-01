@@ -9,6 +9,12 @@ from apps.securities.models import Security
 from apps.securities.serializers import SecurityDetailSerializer, SecurityListSerializer
 
 
+class SecurityPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 2000
+
+
 class HistoryPagination(PageNumberPagination):
     page_size = 5000
     page_size_query_param = "page_size"
@@ -17,6 +23,7 @@ class HistoryPagination(PageNumberPagination):
 
 class SecurityListView(generics.ListAPIView):
     serializer_class = SecurityListSerializer
+    pagination_class = SecurityPagination
 
     def get_queryset(self) -> QuerySet:
         qs = Security.objects.select_related("sector").all()

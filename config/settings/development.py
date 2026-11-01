@@ -1,3 +1,5 @@
+import os
+from typing import Any, cast
 from .base import *  # noqa: F401,F403
 
 DEBUG = True
@@ -16,4 +18,4 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
 }
 
 # Verbose logging in development
-LOGGING["root"]["level"] = "DEBUG"  # noqa: F405
+cast(dict[str, Any], LOGGING)["root"]["level"] = "DEBUG"  # noqa: F405
