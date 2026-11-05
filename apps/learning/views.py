@@ -14,7 +14,6 @@ from apps.learning.models import (
     TutorialLesson,
     TutorialProgress,
 )
-from apps.learning.permissions import IsAdminOrReadOnly
 from apps.learning.serializers import (
     QuizSubmissionRequestSerializer,
     TutorialCategorySerializer,

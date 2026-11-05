@@ -6,7 +6,8 @@ IndexSnapshot uses (index, trading_date) as identity.
 """
 
 import logging
-from datetime import date, datetime, timedelta, timezone as dt_timezone
+from datetime import date, datetime, timedelta
+from datetime import timezone as dt_timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any
 

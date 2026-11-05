@@ -1,7 +1,7 @@
 """Django Admin configuration for the Learning Center."""
 
 from django.contrib import admin
-from django.utils.html import format_html
+
 from apps.learning.models import (
     LessonProgress,
     Tutorial,

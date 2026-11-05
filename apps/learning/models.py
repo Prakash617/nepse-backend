@@ -5,6 +5,7 @@ and user-specific progress tracking.
 """
 
 from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 

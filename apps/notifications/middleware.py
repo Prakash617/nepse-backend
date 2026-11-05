@@ -1,9 +1,10 @@
 import logging
 from importlib import import_module
+from urllib.parse import parse_qs
 
-from django.conf import settings
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 

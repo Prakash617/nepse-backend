@@ -5,6 +5,7 @@ from rest_framework.pagination import PageNumberPagination
 
 from apps.prices.models import DailyPrice, IntradayPrice
 from apps.prices.serializers import DailyPriceSerializer, IntradayPriceSerializer
+from apps.sectors.models import Sector
 from apps.securities.models import Security
 from apps.securities.serializers import SecurityDetailSerializer, SecurityListSerializer
 
@@ -34,7 +35,12 @@ class SecurityListView(generics.ListAPIView):
 
         sector = self.request.query_params.get("sector")
         if sector:
-            qs = qs.filter(sector__name__icontains=sector)
+            if sector.isdigit():
+                qs = qs.filter(sector__nepse_id=int(sector))
+            elif Sector.objects.filter(Q(name__iexact=sector) | Q(display_name__iexact=sector)).exists():
+                qs = qs.filter(Q(sector__name__iexact=sector) | Q(sector__display_name__iexact=sector))
+            else:
+                qs = qs.filter(Q(sector__name__icontains=sector) | Q(sector__display_name__icontains=sector))
 
         security_type = self.request.query_params.get("security_type")
         if security_type:

@@ -1,6 +1,7 @@
 """Serializers for the Learning Center API."""
 
 from rest_framework import serializers
+
 from apps.learning.models import (
     LessonProgress,
     Tutorial,

@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from apps.indices.models import IndexSnapshot, MarketIndex
+from apps.indices.models import IndexSnapshot
 from apps.sectors.models import Sector
 
 SECTOR_INDEX_MAPPING: dict[str, int] = {

@@ -3,6 +3,7 @@
 from django.db.models import QuerySet
 from rest_framework import generics
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 
 from apps.indices.models import IndexSnapshot, MarketIndex
 from apps.indices.serializers import IndexSnapshotSerializer, MarketIndexSerializer
@@ -49,9 +50,6 @@ class IndexHistoryView(generics.ListAPIView):
 
         qs = qs.order_by("trading_date")
         return qs
-
-
-from rest_framework.response import Response
 
 
 class IndexIntradayView(generics.GenericAPIView):

@@ -1,6 +1,5 @@
 """Tests for Learning Center models, APIs, progress tracking, and quiz scoring."""
 
-from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework import status
@@ -79,7 +78,7 @@ def sample_tutorial(category):
         is_published=True,
     )
     # Create 3 lessons
-    l1 = TutorialLesson.objects.create(
+    TutorialLesson.objects.create(
         tutorial=tut,
         title="Introduction to Candlestick Charts",
         slug="introduction-to-candlestick-charts",
@@ -97,7 +96,7 @@ def sample_tutorial(category):
         estimated_minutes=5,
         is_published=True,
     )
-    l3 = TutorialLesson.objects.create(
+    TutorialLesson.objects.create(
         tutorial=tut,
         title="Unpublished Draft Lesson",
         slug="draft-lesson",
@@ -106,7 +105,7 @@ def sample_tutorial(category):
         estimated_minutes=5,
         is_published=False,
     )
-    l4 = TutorialLesson.objects.create(
+    TutorialLesson.objects.create(
         tutorial=tut,
         title="Hammer Pattern",
         slug="hammer-pattern",
@@ -193,7 +192,7 @@ class TestTutorialListAndDetailAPI:
         assert data["slug"] == sample_tutorial.slug
         assert "lessons" in data
         # Should only list published lessons (3 out of 4)
-        lesson_slugs = [l["slug"] for l in data["lessons"]]
+        lesson_slugs = [lesson["slug"] for lesson in data["lessons"]]
         assert "introduction-to-candlestick-charts" in lesson_slugs
         assert "understanding-ohlc" in lesson_slugs
         assert "hammer-pattern" in lesson_slugs

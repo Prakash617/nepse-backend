@@ -2,6 +2,7 @@
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+
 from apps.learning.models import (
     Tutorial,
     TutorialCategory,
@@ -117,7 +118,7 @@ A candlestick reveals the entire emotional struggle of that trading day at a sin
 ```
        Line Chart                  Candlestick Chart
        Only shows Close            Shows Open, High, Low, & Close
-             ●                     
+             ●
             / \\                            │ (High)
            /   \\                       ┌───┴───┐
           /     ●                      │  BODY │

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from django.db.utils import OperationalError
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -138,3 +139,29 @@ class TestSystemSpecsAPI:
         assert isinstance(data, list)
         assert len(data) >= 1
         assert data[0]["feed_id"] == "alerts_engine"
+
+
+@pytest.mark.django_db
+class TestHealthCheckAPI:
+    """Test suite for GET /api/v1/system/health/."""
+
+    def test_health_endpoint_ok(self, api_client: APIClient) -> None:
+        response = api_client.get("/api/v1/system/health/")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"status": "ok", "database": "ok"}
+
+    def test_health_endpoint_reports_database_failure(
+        self, api_client: APIClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _raise_operational_error() -> None:
+            raise OperationalError("database down")
+
+        monkeypatch.setattr(
+            "apps.market.system_views.connection.ensure_connection",
+            _raise_operational_error,
+        )
+
+        response = api_client.get("/api/v1/system/health/")
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.json()["status"] == "error"
+        assert response.json()["database"] == "unavailable"

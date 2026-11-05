@@ -1,5 +1,7 @@
 """System specifications and telemetry API views."""
 
+from django.db import connection
+from django.db.utils import OperationalError
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -12,6 +14,31 @@ from apps.market.system_service import (
     get_system_specs,
     trigger_feed_sync,
 )
+
+
+class HealthCheckView(APIView):
+    """Liveness/readiness probe used by deployment automation and uptime monitors."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        summary="Health check",
+        description="Returns 200 when the API can reach PostgreSQL, 503 otherwise.",
+        responses={
+            200: OpenApiResponse(description="Service and database are healthy"),
+            503: OpenApiResponse(description="A required dependency is unavailable"),
+        },
+    )
+    def get(self, request: Request) -> Response:
+        try:
+            connection.ensure_connection()
+        except OperationalError:
+            return Response(
+                {"status": "error", "database": "unavailable"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response({"status": "ok", "database": "ok"})
 
 
 class SystemSpecsView(APIView):

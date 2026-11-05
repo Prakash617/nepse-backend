@@ -63,6 +63,31 @@ class TestSecurityList:
         assert response.status_code == 200
         assert len(response.data["results"]) == 2
 
+    def test_filter_by_exact_sector_disambiguation(self, api_client, sector_data):
+        finance_sector = Sector.objects.create(nepse_id=20, name="Finance", display_name="Finance")
+        micro_sector = Sector.objects.create(nepse_id=21, name="Microfinance", display_name="Microfinance")
+        Security.objects.create(nepse_id=201, symbol="FIN1", company_name="Finance Co", sector=finance_sector, security_type="Equity")
+        Security.objects.create(nepse_id=202, symbol="MIC1", company_name="Microfinance Co", sector=micro_sector, security_type="Equity")
+
+        # Exact match should return only Finance, not Microfinance
+        res_fin = api_client.get("/api/v1/securities/?sector=Finance")
+        assert res_fin.status_code == 200
+        symbols_fin = [s["symbol"] for s in res_fin.data["results"]]
+        assert "FIN1" in symbols_fin
+        assert "MIC1" not in symbols_fin
+
+        # Query by nepse_id
+        res_id = api_client.get(f"/api/v1/securities/?sector={finance_sector.nepse_id}")
+        assert res_id.status_code == 200
+        assert [s["symbol"] for s in res_id.data["results"]] == ["FIN1"]
+
+    def test_filter_by_security_type(self, api_client, sector_data):
+        Security.objects.create(nepse_id=301, symbol="BOND1", company_name="Debenture", sector=sector_data, security_type="Non-Convertible Debentures")
+        res = api_client.get("/api/v1/securities/?security_type=Equity")
+        assert res.status_code == 200
+        types = [s["security_type"] for s in res.data["results"]]
+        assert "Non-Convertible Debentures" not in types
+
     def test_ordering(self, api_client, securities_data):
         response = api_client.get("/api/v1/securities/?ordering=-symbol")
         assert response.status_code == 200

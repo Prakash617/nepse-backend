@@ -1,14 +1,15 @@
 """Service layer for learning progress tracking and quiz scoring."""
 
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from django.utils import timezone
+
 from apps.learning.models import (
     LessonProgress,
     Tutorial,
     TutorialLesson,
     TutorialProgress,
-    TutorialQuiz,
 )
 
 
@@ -21,7 +22,7 @@ def get_or_create_tutorial_progress(user, tutorial: Tutorial) -> TutorialProgres
     return progress
 
 
-def record_lesson_access(user, lesson: TutorialLesson) -> Optional[TutorialProgress]:
+def record_lesson_access(user, lesson: TutorialLesson) -> TutorialProgress | None:
     """Records that the user accessed this lesson."""
     if not user.is_authenticated:
         return None
@@ -90,7 +91,7 @@ def update_lesson_completion(
     return lesson_progress, tut_progress
 
 
-def grade_quiz(lesson: TutorialLesson, submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
+def grade_quiz(lesson: TutorialLesson, submissions: list[dict[str, Any]]) -> dict[str, Any]:
     """Grades submitted quiz answers for a lesson.
 
     Submissions format:
@@ -99,7 +100,6 @@ def grade_quiz(lesson: TutorialLesson, submissions: List[Dict[str, Any]]) -> Dic
     ]
     """
     quizzes = lesson.quizzes.prefetch_related("options").all()
-    quiz_map = {q.id: q for q in quizzes}
 
     results = []
     correct_count = 0

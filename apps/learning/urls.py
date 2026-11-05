@@ -1,6 +1,7 @@
 """URL routing for the Learning Center app."""
 
 from django.urls import path
+
 from apps.learning import views
 
 app_name = "learning"
