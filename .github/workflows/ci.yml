@@ -16,14 +16,14 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.12"
-  POSTGRES_HOST: localhost
+  POSTGRES_HOST: 127.0.0.1
   POSTGRES_PORT: "5432"
   POSTGRES_DB: nepse_test
   POSTGRES_USER: nepse
   POSTGRES_PASSWORD: nepse_secure_pass_2026
-  REDIS_URL: redis://localhost:6379/0
-  CELERY_BROKER_URL: redis://localhost:6379/1
-  CELERY_RESULT_BACKEND: redis://localhost:6379/2
+  REDIS_URL: redis://127.0.0.1:6379/0
+  CELERY_BROKER_URL: redis://127.0.0.1:6379/1
+  CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/2
   DJANGO_SETTINGS_MODULE: config.settings.development
 
 jobs:
@@ -60,6 +60,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Stop conflicting host services
+        run: |
+          sudo systemctl stop postgresql 2>/dev/null || true
+          sudo systemctl stop redis-server 2>/dev/null || true
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
