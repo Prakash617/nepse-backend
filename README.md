@@ -22,7 +22,7 @@ Production-oriented market-data platform for the Nepal Stock Exchange (NEPSE). B
 ## Project Structure
 
 ```
-backend/
+.
 ├── apps/                    # Django applications
 │   ├── market/              # Market snapshot (daily aggregates)
 │   ├── prices/              # Daily stock prices (LTP, OHLCV)
@@ -66,7 +66,6 @@ backend/
 
 ### 2. Start Infrastructure (PostgreSQL + Redis)
 ```bash
-cd backend
 docker compose up -d
 ```
 Starts:
@@ -230,6 +229,50 @@ uv run ruff check .
 # Type check with mypy
 uv run mypy .
 ```
+
+---
+
+## CI/CD
+
+This repository is the backend-only repository. It was split from the
+`nepse-alert` monorepo and deploys independently to the VPS.
+
+- **CI** (`.github/workflows/ci.yml`) runs on pushes/PRs to `main`:
+  Ruff, Django system check, migration drift check, pytest, and a Docker
+  image build/smoke test.
+- **CD** (`.github/workflows/deploy.yml`) runs after CI succeeds on `main`:
+  it checks out the exact tested SHA on the VPS, rebuilds
+  `docker-compose.prod.yml`, restarts nginx, and waits for
+  `GET /api/v1/system/health/` to return `200`.
+
+### Required repository secrets
+
+| Secret | Purpose |
+|---|---|
+| `VPS_HOST` | VPS hostname or IP |
+| `VPS_USER` | SSH user |
+| `VPS_SSH_KEY` | Private SSH key with access to the VPS |
+
+Optional repository variable: `DEPLOY_PATH` (defaults to `~/nepse-backend`).
+
+### VPS setup
+
+```bash
+git clone git@github.com:Prakash617/nepse-backend.git ~/nepse-backend
+cd ~/nepse-backend
+cp .env.production.example .env
+# edit .env with production values
+```
+
+The VPS needs Docker + Compose, a GitHub deploy key with read access to this
+repository, and the nginx certificates referenced by
+`docker-compose.prod.yml`.
+
+### Health endpoint
+
+`GET /api/v1/system/health/` returns `200 {"status":"ok","database":"ok"}` when
+PostgreSQL is reachable, or `503` otherwise. The CD workflow uses it as the
+deploy readiness gate.
 
 ---
 
