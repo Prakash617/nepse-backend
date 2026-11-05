@@ -25,6 +25,11 @@ env:
   CELERY_BROKER_URL: redis://127.0.0.1:6379/1
   CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/2
   DJANGO_SETTINGS_MODULE: config.settings.development
+  TELEGRAM_BOT_TOKEN: "mock_ci_telegram_bot_token"
+  TELEGRAM_BOT_USERNAME: "stock_napal_bot"
+  VAPID_PUBLIC_KEY: "BNIPVKVp5gEyHkwpZZjDhGb84zlDuJjGu2YulvS74E2SuO15eifJXx2-nBcDJLU7ulWBShoZ_ZlOuGGdYbIw1Cs"
+  VAPID_PRIVATE_KEY: "q5gl-g5G4mSbnRKK4Kbj6-3BQEjS9dFpApK9K4sI0kk"
+  VAPID_ADMIN_EMAIL: "mailto:admin@nepse.local"
 
 jobs:
   backend:
